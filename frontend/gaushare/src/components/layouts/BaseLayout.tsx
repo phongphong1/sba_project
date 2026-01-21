@@ -1,7 +1,8 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
-import { headerNavigation, siteName } from '../../const/navigation'
+import { headerNavigation, siteName, headerText } from '../../const/navigation'
 import MoreMenu from './MoreMenu'
 import Logo from '../common/Logo'
+import FloatingActionButton from '../common/FloatingActionButton'
 
 export default function BaseLayout() {
     const location = useLocation()
@@ -46,10 +47,20 @@ export default function BaseLayout() {
 
             {/* Main Content */}
             <main className="flex-1 overflow-auto">
+                {/* Header Text */}
+                <div className="w-full text-center py-4">
+                    <h1 className={headerText.className} style={{ fontFamily: 'Macondo', fontStyle: 'italic' }}>
+                        {headerText.text}
+                    </h1>
+                </div>
+
                 <div className="container mx-auto px-6 py-8">
                     <Outlet />
                 </div>
             </main>
+
+            {/* Floating Action Button */}
+            <FloatingActionButton />
         </div>
     )
 }

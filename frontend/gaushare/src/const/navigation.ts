@@ -48,3 +48,8 @@ export const headerNavigation: NavigationItem[] = [
 ]
 
 export const siteName = 'Gaushare'
+
+export const headerText = {
+    text: 'GauShare',
+    className: 'text-5xl font-bold tracking-tight',
+}
