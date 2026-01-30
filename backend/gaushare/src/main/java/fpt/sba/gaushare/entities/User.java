@@ -2,16 +2,20 @@ package fpt.sba.gaushare.entities;
 
 import fpt.sba.gaushare.constants.enums.UserStatus;
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import lombok.*;
 import org.hibernate.annotations.*;
 
+import java.sql.Date;
 import java.time.Instant;
 
-@Getter
-@Setter
+@Data
 @Entity
 @Table(name = "users")
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -55,6 +59,14 @@ public class User {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private Instant updatedAt;
+
+    @NotNull
+    @ColumnDefault("''")
+    @Column(name = "fullname", nullable = false)
+    private String fullname;
+
+    @Column(name = "date_of_birth")
+    private Date dateOfBirth;
 
 
 }
