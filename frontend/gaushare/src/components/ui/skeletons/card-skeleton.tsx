@@ -12,11 +12,14 @@ export function SkeletonCard() {
                         <Skeleton className="h-4 w-[150px]" />
                     </div>
                 </div>
-                <br />
-                <Skeleton className="h-4 w-[200px]" />
             </CardHeader>
             <CardContent>
-                <Skeleton className="aspect-video w-full" />
+                <div className="flex w-full max-w-xs flex-col gap-2">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-11/12" />
+                    <Skeleton className="h-4 w-3/4" />
+                </div>
             </CardContent>
         </Card>
     )

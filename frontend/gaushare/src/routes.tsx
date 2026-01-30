@@ -1,10 +1,24 @@
 import type { RouteObject } from 'react-router-dom'
 import BaseLayout from './components/layouts/BaseLayout'
 import Home from './pages/Home'
-import About from './pages/About'
+import Login from './pages/Login'
+import SignUp from './pages/SignUp'
+import Verify from './pages/Verify'
 import NotFound from './pages/NotFound'
 
 export const routes: RouteObject[] = [
+    {
+        path: '/login',
+        element: <Login />,
+    },
+    {
+        path: '/signup',
+        element: <SignUp />,
+    },
+    {
+        path: '/verify',
+        element: <Verify />,
+    },
     {
         path: '/',
         element: <BaseLayout />,
@@ -12,10 +26,6 @@ export const routes: RouteObject[] = [
             {
                 index: true,
                 element: <Home />,
-            },
-            {
-                path: 'about',
-                element: <About />,
             },
             {
                 path: '*',
