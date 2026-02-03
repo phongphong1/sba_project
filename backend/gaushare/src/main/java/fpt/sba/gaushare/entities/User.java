@@ -31,9 +31,9 @@ public class User {
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
-    @ColumnDefault("0")
+    @Builder.Default
     @Column(name = "reputation")
-    private Integer reputation;
+    private Integer reputation = 0;
 
     @Lob
     @Column(name = "avatar_url")

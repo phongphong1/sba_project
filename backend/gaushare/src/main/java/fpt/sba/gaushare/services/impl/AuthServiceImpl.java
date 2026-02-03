@@ -1,10 +1,14 @@
 package fpt.sba.gaushare.services.impl;
 
+import fpt.sba.gaushare.constants.Message;
 import fpt.sba.gaushare.constants.enums.UserStatus;
 import fpt.sba.gaushare.dto.requests.UserRegistrationDTO;
+import fpt.sba.gaushare.dto.requests.VerifyRequestDTO;
 import fpt.sba.gaushare.dto.responses.RegistrationResponse;
+import fpt.sba.gaushare.dto.responses.VerifyResponse;
 import fpt.sba.gaushare.entities.User;
-import fpt.sba.gaushare.mappers.UserMapper;
+import fpt.sba.gaushare.exceptions.InvalidOtpException;
+import fpt.sba.gaushare.exceptions.UserNotFoundException;
 import fpt.sba.gaushare.repositories.RoleRepository;
 import fpt.sba.gaushare.repositories.UserRepository;
 import fpt.sba.gaushare.services.AuthService;
@@ -12,8 +16,9 @@ import fpt.sba.gaushare.services.EmailService;
 import fpt.sba.gaushare.services.PasswordService;
 import fpt.sba.gaushare.utils.IdEncoder;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
+
+import java.util.HashMap;
 
 @Service
 @RequiredArgsConstructor
@@ -45,12 +50,50 @@ public class AuthServiceImpl implements AuthService {
         String otp = passwordService.generateOtp(userRegistration.getEmail(), OTP_LENGTH, OTP_TTL_MINUTES);
 
         User savedUser = userRepository.save(user);
-        emailService.sendEmail(user.getEmail(),
+
+        HashMap<String, String> templateValues = new HashMap<>();
+        templateValues.put("otpCode", otp);
+        templateValues.put("name", savedUser.getUsername());
+        templateValues.put("expireTime", OTP_TTL_MINUTES + "");
+
+        emailService.sendEmailWithTemplate(
+                savedUser.getEmail(),
                 "Verify your email",
-                "Your OTP code is: " + otp);
+                "OTPMail",
+                templateValues
+        );
 
         return RegistrationResponse.builder()
                 .userId(IdEncoder.encode(savedUser.getId()))
                 .build();
     }
+
+
+    @Override
+    public VerifyResponse verifyOtpCode(VerifyRequestDTO verifyRequestDTO) {
+        // Validate OTP
+        boolean isValid = passwordService.validateOtp(verifyRequestDTO.getEmail(), verifyRequestDTO.getOtpCode());
+        if (!isValid) {
+            throw new InvalidOtpException(Message.INVALID_OTP);
+        }
+
+        // Find user by email
+        User user = userRepository.findByEmail(verifyRequestDTO.getEmail());
+        if (user == null) {
+            throw new UserNotFoundException(Message.USER_NOT_FOUND);
+        }
+
+        // Update user status and clean up OTP
+        user.setStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+        passwordService.deleteOtp(verifyRequestDTO.getEmail());
+
+        return VerifyResponse.builder()
+                .userId(IdEncoder.encode(user.getId()))
+                .success(true)
+                .message(Message.OTP_VERIFIED_SUCCESS)
+                .build();
+    }
+
+
 }

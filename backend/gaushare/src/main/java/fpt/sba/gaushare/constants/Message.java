@@ -7,4 +7,9 @@ public class Message {
     public static final String EMAIL_ALREADY_EXISTS = "Email already exists.";
     public static final String REGISTRATION_SUCCESS = "Registration successful.";
     public static final String LOGIN_SUCCESS = "Login successful.";
+
+    // OTP related messages
+    public static final String INVALID_OTP = "Invalid OTP code.";
+    public static final String OTP_EXPIRED = "OTP code has expired.";
+    public static final String OTP_VERIFIED_SUCCESS = "OTP verified successfully.";
 }

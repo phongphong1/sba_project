@@ -45,11 +45,13 @@ public class PasswordServiceImpl implements PasswordService {
         return otp.toString();
     }
 
+    @Override
     public boolean validateOtp(String email, String userInputCode) {
         String savedCode = redisTemplate.opsForValue().get(OTP_PREFIX + email);
         return userInputCode.equals(savedCode);
     }
 
+    @Override
     public void deleteOtp(String email) {
         redisTemplate.delete(OTP_PREFIX + email);
     }
