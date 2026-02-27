@@ -17,7 +17,7 @@ export interface SignUpRequest {
 
 export interface VerifyRequest {
     email: string
-    otp: string
+    otpCode: string
 }
 
 export interface AuthResponse {
@@ -28,6 +28,17 @@ export interface AuthResponse {
         email: string
         name: string
     }
+}
+
+export interface RegisterResponse {
+    message: string,
+    userId: string
+}
+
+export interface VerifyResponse {
+    message: string,
+    success: boolean,
+    userId: string
 }
 
 // Auth Service
@@ -50,14 +61,9 @@ export const authService = {
     /**
      * Sign up new user
      */
-    signUp: async (userData: SignUpRequest): Promise<AuthResponse> => {
-        const response = await api.post<AuthResponse>(AUTH_URLS.SIGNUP, userData)
-        const data = getResponseData<AuthResponse>(response)
-
-        // Store token
-        if (data.token) {
-            localStorage.setItem('token', data.token)
-        }
+    signUp: async (userData: SignUpRequest): Promise<RegisterResponse> => {
+        const response = await api.post<RegisterResponse>(AUTH_URLS.SIGNUP, userData)
+        const data = getResponseData<RegisterResponse>(response)
 
         return data
     },
@@ -65,14 +71,9 @@ export const authService = {
     /**
      * Verify OTP
      */
-    verifyOtp: async (verifyData: VerifyRequest): Promise<AuthResponse> => {
-        const response = await api.post<AuthResponse>(AUTH_URLS.VERIFY, verifyData)
-        const data = getResponseData<AuthResponse>(response)
-
-        // Store token
-        if (data.token) {
-            localStorage.setItem('token', data.token)
-        }
+    verifyOtp: async (verifyData: VerifyRequest): Promise<VerifyResponse> => {
+        const response = await api.post<VerifyResponse>(AUTH_URLS.VERIFY, verifyData)
+        const data = getResponseData<VerifyResponse>(response)
 
         return data
     },

@@ -21,6 +21,7 @@ const apiClient: AxiosInstance = axios.create({
     timeout: 30000,
     headers: {
         'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
     },
 })
 

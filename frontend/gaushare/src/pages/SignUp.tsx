@@ -13,7 +13,6 @@ import {
 } from '../components/ui/card'
 import {
     Field,
-    FieldDescription,
     FieldGroup,
     FieldLabel,
 } from '../components/ui/field'
@@ -27,27 +26,21 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from '../components/ui/popover'
+import { useRegister } from '../hooks/useRegister'
 
 export default function SignUp() {
     const navigate = useNavigate()
+    const { register, isLoading, error, errors, clearErrors } = useRegister()
     const [formData, setFormData] = useState({
-        name: '',
+        fullname: '',
         email: '',
         username: '',
-        dateOfBirth: '',
+        dob: '',
         password: '',
         confirmPassword: '',
     })
     const [datePickerOpen, setDatePickerOpen] = useState(false)
     const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
-    const [errors, setErrors] = useState<{
-        name?: string
-        email?: string
-        username?: string
-        dateOfBirth?: string
-        password?: string
-        confirmPassword?: string
-    }>({})
 
     const formatDate = (date: Date | undefined): string => {
         if (!date) return ''
@@ -62,14 +55,11 @@ export default function SignUp() {
         if (date) {
             setFormData(prev => ({
                 ...prev,
-                dateOfBirth: formatDate(date),
+                dob: formatDate(date),
             }))
             setDatePickerOpen(false)
-            if (errors.dateOfBirth) {
-                setErrors(prev => ({
-                    ...prev,
-                    dateOfBirth: undefined,
-                }))
+            if (errors.dob) {
+                clearErrors()
             }
         }
     }
@@ -78,7 +68,7 @@ export default function SignUp() {
         const { name, value } = e.target
 
         // Format date of birth input (only numbers, format DD/MM/YYYY)
-        if (name === 'dateOfBirth') {
+        if (name === 'dob') {
             // Remove all non-numeric characters
             const numbersOnly = value.replace(/\D/g, '')
             let formatted = numbersOnly
@@ -117,66 +107,13 @@ export default function SignUp() {
 
         // Clear error when user types
         if (errors[name as keyof typeof errors]) {
-            setErrors(prev => ({
-                ...prev,
-                [name]: undefined,
-            }))
+            clearErrors()
         }
     }
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-
-        // Simple validation
-        const newErrors: typeof errors = {}
-        if (!formData.name) {
-            newErrors.name = 'Name is required'
-        }
-        if (!formData.email) {
-            newErrors.email = 'Email is required'
-        } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-            newErrors.email = 'Email is invalid'
-        }
-        if (!formData.username) {
-            newErrors.username = 'Username is required'
-        }
-        if (!formData.dateOfBirth) {
-            newErrors.dateOfBirth = 'Date of birth is required'
-        } else {
-            // Validate date format DD/MM/YYYY
-            const dateRegex = /^(\d{2})\/(\d{2})\/(\d{4})$/
-            if (!dateRegex.test(formData.dateOfBirth)) {
-                newErrors.dateOfBirth = 'Please enter date in format DD/MM/YYYY'
-            } else {
-                const [, day, month, year] = formData.dateOfBirth.match(dateRegex) || []
-                const dayNum = parseInt(day, 10)
-                const monthNum = parseInt(month, 10)
-                const yearNum = parseInt(year, 10)
-
-                // Basic validation
-                if (dayNum < 1 || dayNum > 31 || monthNum < 1 || monthNum > 12 || yearNum < 1900 || yearNum > new Date().getFullYear()) {
-                    newErrors.dateOfBirth = 'Please enter a valid date'
-                }
-            }
-        }
-        if (!formData.password) {
-            newErrors.password = 'Password is required'
-        } else if (formData.password.length < 6) {
-            newErrors.password = 'Password must be at least 6 characters'
-        }
-        if (formData.password !== formData.confirmPassword) {
-            newErrors.confirmPassword = 'Passwords do not match'
-        }
-
-        if (Object.keys(newErrors).length > 0) {
-            setErrors(newErrors)
-            return
-        }
-
-        // Handle signup logic here
-        console.log('SignUp:', formData)
-        // Navigate to home after successful signup
-        navigate('/')
+        await register(formData)
     }
 
     return (
@@ -207,19 +144,19 @@ export default function SignUp() {
                         <CardContent>
                             <FieldGroup>
                                 <Field>
-                                    <FieldLabel htmlFor="name">Name</FieldLabel>
+                                    <FieldLabel htmlFor="fullname">Full Name</FieldLabel>
                                     <Input
-                                        id="name"
-                                        name="name"
+                                        id="fullname"
+                                        name="fullname"
                                         type="text"
-                                        placeholder="Enter your name"
-                                        value={formData.name}
+                                        placeholder="Enter your full name"
+                                        value={formData.fullname}
                                         onChange={handleChange}
-                                        aria-invalid={!!errors.name}
+                                        aria-invalid={!!errors.fullname}
                                         required
                                     />
-                                    {errors.name && (
-                                        <span className="text-sm text-destructive">{errors.name}</span>
+                                    {errors.fullname && (
+                                        <span className="text-sm text-destructive">{errors.fullname}</span>
                                     )}
                                 </Field>
                                 <Field>
@@ -255,14 +192,14 @@ export default function SignUp() {
                                     )}
                                 </Field>
                                 <Field>
-                                    <FieldLabel htmlFor="dateOfBirth">Date of Birth</FieldLabel>
+                                    <FieldLabel htmlFor="dob">Date of Birth</FieldLabel>
                                     <div className="flex gap-2">
                                         <Input
-                                            id="dateOfBirth"
-                                            name="dateOfBirth"
+                                            id="dob"
+                                            name="dob"
                                             type="text"
                                             placeholder="DD/MM/YYYY"
-                                            value={formData.dateOfBirth}
+                                            value={formData.dob}
                                             onChange={handleChange}
                                             onKeyDown={(e) => {
                                                 if (e.key === 'ArrowDown') {
@@ -270,7 +207,7 @@ export default function SignUp() {
                                                     setDatePickerOpen(true)
                                                 }
                                             }}
-                                            aria-invalid={!!errors.dateOfBirth}
+                                            aria-invalid={!!errors.dob}
                                             maxLength={10}
                                             required
                                             className="flex-1"
@@ -297,8 +234,8 @@ export default function SignUp() {
                                             </PopoverContent>
                                         </Popover>
                                     </div>
-                                    {errors.dateOfBirth && (
-                                        <span className="text-sm text-destructive">{errors.dateOfBirth}</span>
+                                    {errors.dob && (
+                                        <span className="text-sm text-destructive">{errors.dob}</span>
                                     )}
                                 </Field>
                                 <Field>
@@ -336,8 +273,13 @@ export default function SignUp() {
                             </FieldGroup>
                         </CardContent>
                         <CardFooter className="flex-col gap-2 mt-4">
-                            <Button type="submit" className="w-full">
-                                Sign Up
+                            {error && (
+                                <div className="w-full p-3 text-sm text-destructive bg-destructive/10 rounded-md">
+                                    {error}
+                                </div>
+                            )}
+                            <Button type="submit" className="w-full" disabled={isLoading}>
+                                {isLoading ? 'Signing up...' : 'Sign Up'}
                             </Button>
                             <div className="flex items-center justify-center gap-2 w-full">
                                 <Separator className="flex-1" /> <span className="text-muted-foreground text-sm">or</span>

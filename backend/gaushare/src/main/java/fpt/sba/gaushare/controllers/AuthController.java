@@ -12,7 +12,6 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.HashMap;
 
 
@@ -22,25 +21,6 @@ import java.util.HashMap;
 public class AuthController {
 
     private final AuthService authService;
-    private final EmailService emailService;
-
-
-    @GetMapping
-    public ResponseEntity<String> hello() {
-
-        HashMap<String, String> templateValues = new HashMap<>();
-        templateValues.put("otpCode", "556688");
-        templateValues.put("name", "LetGauCode");
-        templateValues.put("expireTime", "30");
-
-        emailService.sendEmailWithTemplate(
-                "hoangvanphong102@gmail.com",
-                "Test Email",
-                "OTPMail",
-                templateValues
-        );
-        return ResponseEntity.ok("Hello World");
-    }
 
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<RegistrationResponse>> registerUser(
@@ -59,6 +39,7 @@ public class AuthController {
         VerifyResponse response = authService.verifyOtpCode(verifyRequestDTO);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
+
 
 
 }

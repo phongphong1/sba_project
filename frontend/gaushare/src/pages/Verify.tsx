@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Button } from '../components/ui/button'
 import {
@@ -17,48 +16,31 @@ import {
 } from '../components/ui/input-otp'
 import { ArrowLeftIcon, RefreshCwIcon } from 'lucide-react'
 import { headerText } from '../const/navigation'
+import { useOtp } from '../hooks/useOtp'
 
 export default function Verify() {
     const navigate = useNavigate()
     const location = useLocation()
     const email = (location.state as { email?: string })?.email || 'gau@example.com'
 
-    const [otp, setOtp] = useState('')
-    const [error, setError] = useState('')
-    const [isVerifying, setIsVerifying] = useState(false)
+    const {
+        otp,
+        handleOtpChange,
+        verifyOtp,
+        resendOtp,
+        isVerifying,
+        isResending,
+        error,
+        resendMessage,
+    } = useOtp(email)
 
-    const handleOtpChange = (value: string) => {
-        setOtp(value)
-        if (error) {
-            setError('')
-        }
-    }
-
-    const handleResend = () => {
-        // Handle resend OTP logic here
-        console.log('Resending OTP to:', email)
-        // You can add toast notification here
-    }
-
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
+        await verifyOtp()
+    }
 
-        if (otp.length !== 6) {
-            setError('Please enter the complete verification code')
-            return
-        }
-
-        setIsVerifying(true)
-
-        // Handle verification logic here
-        console.log('Verifying OTP:', otp)
-
-        // Simulate API call
-        setTimeout(() => {
-            setIsVerifying(false)
-            // Navigate to home after successful verification
-            navigate('/')
-        }, 1000)
+    const handleResend = async () => {
+        await resendOtp()
     }
 
     return (
@@ -91,11 +73,14 @@ export default function Verify() {
                                         Verification code
                                     </FieldLabel>
                                     <Button
+                                        type="button"
                                         variant="outline"
                                         size="sm"
+                                        onClick={handleResend}
+                                        disabled={isResending}
                                     >
                                         <RefreshCwIcon className="h-3 w-3" />
-                                        Resend Code
+                                        {isResending ? 'Resending...' : 'Resend Code'}
                                     </Button>
                                 </div>
                                 <div className="flex items-center justify-center">
@@ -119,7 +104,9 @@ export default function Verify() {
                                 {error && (
                                     <span className="text-sm text-destructive">{error}</span>
                                 )}
-
+                                {resendMessage && (
+                                    <span className="text-sm text-green-600 dark:text-green-400">{resendMessage}</span>
+                                )}
                             </Field>
                         </CardContent>
                         <CardFooter className="flex-col gap-2 mt-4">

@@ -1,20 +1,17 @@
 package fpt.sba.gaushare.exceptions;
-
 import fpt.sba.gaushare.dto.ApiResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
-
 @RestControllerAdvice
 public class GlobalExceptionHandler {
-
     @ExceptionHandler(InvalidOtpException.class)
     public ResponseEntity<ApiResponse<Object>> handleInvalidOtpException(InvalidOtpException ex) {
         ApiResponse<Object> response = ApiResponse.builder()
@@ -25,7 +22,6 @@ public class GlobalExceptionHandler {
                 .build();
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
-
     @ExceptionHandler(OtpExpiredException.class)
     public ResponseEntity<ApiResponse<Object>> handleOtpExpiredException(OtpExpiredException ex) {
         ApiResponse<Object> response = ApiResponse.builder()
@@ -36,7 +32,6 @@ public class GlobalExceptionHandler {
                 .build();
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
     }
-
     @ExceptionHandler(UserNotFoundException.class)
     public ResponseEntity<ApiResponse<Object>> handleUserNotFoundException(UserNotFoundException ex) {
         ApiResponse<Object> response = ApiResponse.builder()
@@ -47,7 +42,6 @@ public class GlobalExceptionHandler {
                 .build();
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
     }
-
     @ExceptionHandler(OtpException.class)
     public ResponseEntity<ApiResponse<Object>> handleOtpException(OtpException ex) {
         ApiResponse<Object> response = ApiResponse.builder()
@@ -58,7 +52,26 @@ public class GlobalExceptionHandler {
                 .build();
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
-
+    @ExceptionHandler(AccountNotActiveException.class)
+    public ResponseEntity<ApiResponse<Object>> handleAccountNotActiveException(AccountNotActiveException ex) {
+        ApiResponse<Object> response = ApiResponse.builder()
+                .code(HttpStatus.FORBIDDEN.value())
+                .message(ex.getMessage())
+                .data(null)
+                .timestamp(Instant.now())
+                .build();
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+    }
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<ApiResponse<Object>> handleBadCredentialsException(BadCredentialsException ex) {
+        ApiResponse<Object> response = ApiResponse.builder()
+                .code(HttpStatus.UNAUTHORIZED.value())
+                .message("Invalid username or password.")
+                .data(null)
+                .timestamp(Instant.now())
+                .build();
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+    }
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Object>> handleValidationExceptions(MethodArgumentNotValidException ex) {
         Map<String, String> errors = new HashMap<>();
@@ -67,7 +80,6 @@ public class GlobalExceptionHandler {
             String errorMessage = error.getDefaultMessage();
             errors.put(fieldName, errorMessage);
         });
-
         ApiResponse<Object> response = ApiResponse.builder()
                 .code(HttpStatus.BAD_REQUEST.value())
                 .message("Validation failed")
@@ -76,7 +88,6 @@ public class GlobalExceptionHandler {
                 .build();
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
-
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Object>> handleGlobalException(Exception ex) {
         ApiResponse<Object> response = ApiResponse.builder()
