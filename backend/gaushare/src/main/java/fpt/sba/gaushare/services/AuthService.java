@@ -14,4 +14,6 @@ public interface AuthService {
     VerifyResponse verifyOtpCode(VerifyRequestDTO verifyRequestDTO);
 
     AuthenticationResponse login(AuthenticationRequest request);
+
+    void sendOtpEmail(String email, String subject);
 }

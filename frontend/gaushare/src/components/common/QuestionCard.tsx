@@ -1,7 +1,7 @@
 import { Card as CardBase, CardContent, CardHeader, CardDescription } from '../ui/card'
 import { cn } from '@/lib/utils'
 
-export interface PostCardProps {
+export interface QuestionCardProps {
     className?: string
     onClick?: () => void
     avatar?: string
@@ -10,11 +10,11 @@ export interface PostCardProps {
     title: string
     content: string
     createdAt?: string
-    postId?: string | number
-    postUrl?: string
+    questionId?: string | number
+    questionUrl?: string
 }
 
-export default function PostCard({
+export default function QuestionCard({
     avatar,
     authorName,
     authorUsername: _authorUsername,
@@ -23,7 +23,7 @@ export default function PostCard({
     createdAt,
     className,
     onClick,
-}: PostCardProps) {
+}: QuestionCardProps) {
     return (
         <CardBase
             className={cn('w-full max-w-xs cursor-pointer transition-all hover:shadow-md', className)}

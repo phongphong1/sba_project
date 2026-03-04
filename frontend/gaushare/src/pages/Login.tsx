@@ -16,17 +16,15 @@ import GoogleIcon from '../assets/google-logo.svg'
 import { ArrowLeftIcon } from 'lucide-react'
 import { headerText } from '../const/navigation'
 import { Separator } from '../components/ui/separator'
+import { useLogin } from '../hooks/useLogin'
 
 export default function Login() {
     const navigate = useNavigate()
+    const { login, isLoading, error, errors, clearErrors } = useLogin()
     const [formData, setFormData] = useState({
         username: '',
         password: '',
     })
-    const [errors, setErrors] = useState<{
-        username?: string
-        password?: string
-    }>({})
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target
@@ -34,33 +32,15 @@ export default function Login() {
             ...prev,
             [name]: value,
         }))
-        // Clear error when user types
-        if (errors[name as keyof typeof errors]) {
-            setErrors(prev => ({
-                ...prev,
-                [name]: undefined,
-            }))
+        // Clear errors when user types
+        if (errors[name as keyof typeof errors] || error) {
+            clearErrors()
         }
     }
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-
-        // Simple validation
-        const newErrors: typeof errors = {}
-        if (!formData.username) {
-            newErrors.username = 'Username is required'
-        }
-
-        if (Object.keys(newErrors).length > 0) {
-            setErrors(newErrors)
-            return
-        }
-
-        // Handle login logic here
-        console.log('Login:', formData)
-        // Navigate to home after successful login
-        navigate('/')
+        await login(formData)
     }
 
     return (
@@ -89,6 +69,11 @@ export default function Login() {
                     </CardHeader>
                     <form onSubmit={handleSubmit}>
                         <CardContent>
+                            {error && (
+                                <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+                                    <span className="text-sm text-destructive">{error}</span>
+                                </div>
+                            )}
                             <div className="flex flex-col gap-6">
                                 <div className="grid gap-2">
                                     <Label htmlFor="username">Username</Label>
@@ -100,6 +85,7 @@ export default function Login() {
                                         value={formData.username}
                                         onChange={handleChange}
                                         aria-invalid={!!errors.username}
+                                        disabled={isLoading}
                                         required
                                     />
                                     {errors.username && (
@@ -124,6 +110,7 @@ export default function Login() {
                                         value={formData.password}
                                         onChange={handleChange}
                                         aria-invalid={!!errors.password}
+                                        disabled={isLoading}
                                         required
                                     />
                                     {errors.password && (
@@ -133,8 +120,8 @@ export default function Login() {
                             </div>
                         </CardContent>
                         <CardFooter className="flex-col gap-2 mt-4">
-                            <Button type="submit" className="w-full">
-                                Login
+                            <Button type="submit" className="w-full" disabled={isLoading}>
+                                {isLoading ? 'Logging in...' : 'Login'}
                             </Button>
                             <div className="flex items-center justify-center gap-2 w-full">
                                 <Separator className="flex-1" /> <span className="text-muted-foreground text-sm">or</span>

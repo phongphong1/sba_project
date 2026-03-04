@@ -28,11 +28,11 @@ const apiClient: AxiosInstance = axios.create({
 // Request interceptor
 apiClient.interceptors.request.use(
     (config) => {
-        // Get token from localStorage or wherever you store it
-        const token = localStorage.getItem('token')
+        // Get access token from localStorage
+        const accessToken = localStorage.getItem('accessToken')
 
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`
+        if (accessToken) {
+            config.headers.Authorization = `Bearer ${accessToken}`
         }
 
         // Log request in development
@@ -72,7 +72,10 @@ apiClient.interceptors.response.use(
 
             // Handle 401 Unauthorized - redirect to login
             if (status === 401) {
-                localStorage.removeItem('token')
+                localStorage.removeItem('accessToken')
+                localStorage.removeItem('refreshToken')
+                localStorage.removeItem('userId')
+                localStorage.removeItem('permissions')
                 // Redirect to login page
                 if (window.location.pathname !== '/login') {
                     window.location.href = '/login'

@@ -16,8 +16,8 @@ export const headerNavigation: NavigationItem[] = [
         background: false,
     },
     {
-        path: '/posts',
-        label: 'Posts',
+        path: '/questions',
+        label: 'Questions',
         icon: AppWindowMac,
         background: false,
     },

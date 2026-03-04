@@ -20,15 +20,15 @@ export const USER_URLS = {
     AVATAR: '/users/avatar',
 } as const
 
-// Post API endpoints
-export const POST_URLS = {
-    LIST: '/posts',
-    CREATE: '/posts',
-    DETAIL: (id: string) => `/posts/${id}`,
-    UPDATE: (id: string) => `/posts/${id}`,
-    DELETE: (id: string) => `/posts/${id}`,
-    LIKE: (id: string) => `/posts/${id}/like`,
-    UNLIKE: (id: string) => `/posts/${id}/unlike`,
+// Question API endpoints
+export const QUESTION_URLS = {
+    LIST: '/questions',
+    CREATE: '/questions',
+    DETAIL: (id: string) => `/questions/${id}`,
+    UPDATE: (id: string) => `/questions/${id}`,
+    DELETE: (id: string) => `/questions/${id}`,
+    UPVOTE: (id: string) => `/questions/${id}/upvote`,
+    DOWNVOTE: (id: string) => `/questions/${id}/downvote`,
 } as const
 
 // Document API endpoints
@@ -54,6 +54,6 @@ export const NOTIFICATION_URLS = {
 export const SEARCH_URLS = {
     SEARCH: '/search',
     USERS: '/search/users',
-    POSTS: '/search/posts',
+    QUESTIONS: '/search/questions',
     DOCUMENTS: '/search/documents',
 } as const

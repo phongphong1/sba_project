@@ -1,17 +1,20 @@
 import { Settings, LogOut } from 'lucide-react'
+import { useLogout } from '../../../hooks/useLogout'
 
 interface MoreMenuButtonsProps {
     onButtonClick?: () => void
 }
 
 export default function MoreMenuButtons({ onButtonClick }: MoreMenuButtonsProps) {
+    const { logout, isLoading } = useLogout()
+
     const handleSettingsClick = () => {
         console.log('Settings clicked')
         onButtonClick?.()
     }
 
-    const handleLogoutClick = () => {
-        console.log('Logout clicked')
+    const handleLogoutClick = async () => {
+        await logout()
         onButtonClick?.()
     }
 
@@ -26,10 +29,11 @@ export default function MoreMenuButtons({ onButtonClick }: MoreMenuButtonsProps)
             </button>
             <button
                 onClick={handleLogoutClick}
-                className="w-full px-3 py-2 text-left text-sm rounded-md hover:bg-muted transition-colors flex items-center gap-2"
+                disabled={isLoading}
+                className="w-full px-3 py-2 text-left text-sm rounded-md hover:bg-muted transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
                 <LogOut className="w-4 h-4" />
-                <span>Logout</span>
+                <span>{isLoading ? 'Logging out...' : 'Logout'}</span>
             </button>
         </>
     )

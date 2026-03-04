@@ -20,6 +20,13 @@ export interface VerifyRequest {
     otpCode: string
 }
 
+export interface LoginResponse {
+    userId: string
+    accessToken: string
+    refreshToken: string
+    permissions: string[]
+}
+
 export interface AuthResponse {
     token: string
     user: {
@@ -46,13 +53,22 @@ export const authService = {
     /**
      * Login user
      */
-    login: async (credentials: LoginRequest): Promise<AuthResponse> => {
-        const response = await api.post<AuthResponse>(AUTH_URLS.LOGIN, credentials)
-        const data = getResponseData<AuthResponse>(response)
+    login: async (credentials: LoginRequest): Promise<LoginResponse> => {
+        const response = await api.post<LoginResponse>(AUTH_URLS.LOGIN, credentials)
+        const data = getResponseData<LoginResponse>(response)
 
-        // Store token
-        if (data.token) {
-            localStorage.setItem('token', data.token)
+        // Store tokens and user info
+        if (data.accessToken) {
+            localStorage.setItem('accessToken', data.accessToken)
+        }
+        if (data.refreshToken) {
+            localStorage.setItem('refreshToken', data.refreshToken)
+        }
+        if (data.userId) {
+            localStorage.setItem('userId', data.userId)
+        }
+        if (data.permissions) {
+            localStorage.setItem('permissions', JSON.stringify(data.permissions))
         }
 
         return data
@@ -95,7 +111,10 @@ export const authService = {
         } catch (error) {
             console.error('Logout error:', error)
         } finally {
-            localStorage.removeItem('token')
+            localStorage.removeItem('accessToken')
+            localStorage.removeItem('refreshToken')
+            localStorage.removeItem('userId')
+            localStorage.removeItem('permissions')
         }
     },
 
@@ -110,12 +129,14 @@ export const authService = {
     /**
      * Refresh token
      */
-    refreshToken: async (): Promise<{ token: string }> => {
-        const response = await api.post<{ token: string }>(AUTH_URLS.REFRESH_TOKEN)
+    refreshToken: async (): Promise<{ accessToken: string }> => {
+        const response = await api.post<{ accessToken: string }>(AUTH_URLS.REFRESH_TOKEN, {
+            refreshToken: localStorage.getItem('refreshToken'),
+        })
         const data = getResponseData(response)
 
-        if (data.token) {
-            localStorage.setItem('token', data.token)
+        if (data.accessToken) {
+            localStorage.setItem('accessToken', data.accessToken)
         }
 
         return data
