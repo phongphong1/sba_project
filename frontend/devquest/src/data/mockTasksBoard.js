@@ -4,6 +4,36 @@ export const MOCK_TASKS_DATA = {
     title: 'Project Discovery Call',
     description: 'Cross-functional preparation board for the kickoff and client discovery phase.',
   },
+  projects: [
+    {
+      id: 'board-1',
+      title: 'Project Discovery Call',
+      description:
+        'Cross-functional preparation board for the kickoff and client discovery phase.',
+      status: 'Active now',
+    },
+    {
+      id: 'board-2',
+      title: 'Mobile App Sprint',
+      description:
+        'Coordinate weekly sprint delivery for the mobile product team and QA handoff.',
+      status: 'In planning',
+    },
+    {
+      id: 'board-3',
+      title: 'Design System Refresh',
+      description:
+        'Track component cleanup, token rollout, and documentation updates across squads.',
+      status: 'Reviewing scope',
+    },
+    {
+      id: 'board-4',
+      title: 'Growth Experiment Launch',
+      description:
+        'Organize campaign assets, landing page tasks, and analytics checkpoints before launch.',
+      status: 'Queued',
+    },
+  ],
   onlineMembers: [
     { id: 1, name: 'Ava Stone', role: 'Product Lead', avatar: 'AS', color: '#EEF2FF' },
     { id: 2, name: 'Liam Park', role: 'Frontend Dev', avatar: 'LP', color: '#DBEAFE' },

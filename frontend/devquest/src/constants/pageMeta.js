@@ -1,5 +1,5 @@
 export const pageMetaMap = {
-  '/': {
+  '/dashboard': {
     eyebrow: 'Welcome back',
     title: 'Build faster with clarity',
     description: '8 people shipping across product, engineering, and QA today.',
@@ -13,6 +13,11 @@ export const pageMetaMap = {
     eyebrow: 'Planning',
     title: 'Timeline and milestones',
     description: 'Keep upcoming milestones, dependencies, and sprint pacing visible.',
+  },
+  '/profile': {
+    eyebrow: 'Personal workspace',
+    title: 'Profile and account',
+    description: 'Manage your personal details, activity stats, and account security settings.',
   },
   '/messages': {
     eyebrow: 'Communication',

@@ -1,10 +1,17 @@
-import { DragDropContext, Droppable } from '@hello-pangea/dnd'
 import { useEffect, useMemo, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
+import {
+  KanbanBoard,
+  KanbanCard,
+  KanbanCards,
+  KanbanHeader,
+  KanbanProvider,
+} from '@/components/kibo-ui/kanban'
 import BoardHeader from '@/components/tasks/BoardHeader'
-import KanbanColumn from '@/components/tasks/KanbanColumn'
+import KiboTaskCardContent from '@/components/tasks/KiboTaskCardContent'
 import TaskDetailModal from '@/components/tasks/TaskDetailModal'
 import { Card } from '@/components/ui/card'
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
 import { octomLoadingCardClass } from '@/constants/uiStyles'
 import { MOCK_TASKS_DATA } from '@/data/mockTasksBoard'
 
@@ -20,10 +27,20 @@ function reindexTasks(tasks, columnId) {
   }))
 }
 
+function sortTasksForBoard(columns, tasks) {
+  return [...columns]
+    .sort((a, b) => a.position - b.position)
+    .flatMap((column) =>
+      tasks
+        .filter((task) => task.columnId === column.id)
+        .sort((a, b) => a.position - b.position),
+    )
+}
+
 function reindexColumns(columns) {
   return columns.map((column, index) => ({
     ...column,
-    position: index + 1,
+    position: (index + 1) * 1000,
   }))
 }
 
@@ -76,6 +93,31 @@ export default function TasksPage() {
     return boardData.tasks.find((task) => task.id === selectedTaskId) ?? null
   }, [boardData, selectedTaskId])
 
+  const orderedColumns = useMemo(() => {
+    if (!boardData) return []
+    return [...boardData.columns].sort((a, b) => a.position - b.position)
+  }, [boardData])
+
+  const kanbanColumns = useMemo(
+    () =>
+      orderedColumns.map((column) => ({
+        id: column.id,
+        name: column.title,
+      })),
+    [orderedColumns],
+  )
+
+  const kanbanData = useMemo(
+    () =>
+      sortTasksForBoard(orderedColumns, filteredTasks).map((task) => ({
+        id: task.id,
+        name: task.title,
+        column: task.columnId,
+        task,
+      })),
+    [filteredTasks, orderedColumns],
+  )
+
   const handleAddColumn = () => {
     setBoardData((currentData) => {
       const nextPosition = currentData.columns.length + 1
@@ -87,89 +129,99 @@ export default function TasksPage() {
           {
             id: `col-${Date.now()}`,
             title: `New Column ${nextPosition}`,
-            position: nextPosition,
+            position: nextPosition * 1000,
           },
         ],
       }
     })
   }
 
-  const handleDragEnd = (result) => {
-    const { source, destination, draggableId, type } = result
-
-    if (!destination || !boardData) return
-
-    const sameLocation =
-      source.droppableId === destination.droppableId && source.index === destination.index
-
-    if (sameLocation) return
-
+  const handleProjectSelect = (projectId) => {
     setBoardData((currentData) => {
-      if (type === 'COLUMN') {
-        const orderedColumns = sortByPosition(currentData.columns)
-        const [movedColumn] = orderedColumns.splice(source.index, 1)
+      const nextProject = currentData.projects.find((project) => project.id === projectId)
 
-        if (!movedColumn) return currentData
-
-        orderedColumns.splice(destination.index, 0, movedColumn)
-
-        return {
-          ...currentData,
-          columns: reindexColumns(orderedColumns),
-        }
+      if (!nextProject || nextProject.id === currentData.board.id) {
+        return currentData
       }
 
-      const sourceTasks = sortByPosition(
-        currentData.tasks.filter((task) => task.columnId === source.droppableId),
-      )
-      const destinationTasks =
-        source.droppableId === destination.droppableId
-          ? sourceTasks
-          : sortByPosition(currentData.tasks.filter((task) => task.columnId === destination.droppableId))
-
-      const movingTaskIndex = sourceTasks.findIndex((task) => task.id === draggableId)
-      const [movingTask] = sourceTasks.splice(movingTaskIndex, 1)
-
-      if (!movingTask) return currentData
-
-      const updatedTask = {
-        ...movingTask,
-        columnId: destination.droppableId,
+      return {
+        ...currentData,
+        board: {
+          id: nextProject.id,
+          title: nextProject.title,
+          description: nextProject.description,
+        },
       }
+    })
+  }
 
-      destinationTasks.splice(destination.index, 0, updatedTask)
+  const handleColumnsChange = (newColumns) => {
+    setBoardData((currentData) => {
+      const columnMap = new Map(currentData.columns.map((column) => [column.id, column]))
 
-      const normalizedSourceTasks = reindexTasks(sourceTasks, source.droppableId)
-      const normalizedDestinationTasks =
-        source.droppableId === destination.droppableId
-          ? reindexTasks(destinationTasks, destination.droppableId)
-          : reindexTasks(destinationTasks, destination.droppableId)
-
-      const unaffectedTasks = currentData.tasks.filter(
-        (task) =>
-          task.columnId !== source.droppableId && task.columnId !== destination.droppableId,
-      )
-
-      const mergedTasks =
-        source.droppableId === destination.droppableId
-          ? [...unaffectedTasks, ...normalizedDestinationTasks]
-          : [...unaffectedTasks, ...normalizedSourceTasks, ...normalizedDestinationTasks]
-
-      const movePayload = {
-        taskId: draggableId,
-        fromColumnId: source.droppableId,
-        toColumnId: destination.droppableId,
-        newPosition: (destination.index + 1) * 1000,
+      return {
+        ...currentData,
+        columns: reindexColumns(
+          newColumns
+            .map((column) => columnMap.get(column.id))
+            .filter(Boolean),
+        ),
       }
+    })
+  }
 
-      void movePayload
-      // Reserve this payload for PATCH /api/tasks/move.
+  const handleKanbanDataChange = (newKanbanData) => {
+    setBoardData((currentData) => {
+      const visibleTaskIds = new Set(filteredTasks.map((task) => task.id))
+      const taskMap = new Map(currentData.tasks.map((task) => [task.id, task]))
+      const hiddenTasks = currentData.tasks.filter((task) => !visibleTaskIds.has(task.id))
+
+      const updatedVisibleTasks = newKanbanData
+        .map((item) => {
+          const task = taskMap.get(item.id)
+          if (!task) return null
+          return {
+            ...task,
+            columnId: item.column,
+          }
+        })
+        .filter(Boolean)
+
+      const mergedTasks = orderedColumns.flatMap((column) => {
+        const visibleInColumn = updatedVisibleTasks.filter((task) => task.columnId === column.id)
+        const hiddenInColumn = hiddenTasks
+          .filter((task) => task.columnId === column.id)
+          .sort((a, b) => a.position - b.position)
+
+        return reindexTasks([...visibleInColumn, ...hiddenInColumn], column.id)
+      })
 
       return {
         ...currentData,
         tasks: mergedTasks,
       }
     })
+  }
+
+  const handleKanbanDragEnd = (event) => {
+    const { active, over } = event
+
+    if (!active || !over || active.id === over.id) return
+    if (active.data.current?.type === 'column') return
+
+    const activeTask = boardData?.tasks.find((task) => task.id === active.id)
+    const overTask = boardData?.tasks.find((task) => task.id === over.id)
+    const overColumnId = overTask?.columnId ?? String(over.id)
+
+    const movePayload = {
+      taskId: String(active.id),
+      fromColumnId: activeTask?.columnId ?? null,
+      toColumnId: overColumnId,
+      overTaskId: String(over.id),
+    }
+
+    void movePayload
+    // Reserve this payload for PATCH /api/tasks/move.
   }
 
   if (!boardData) {
@@ -187,38 +239,69 @@ export default function TasksPage() {
       <div className="space-y-6">
         <BoardHeader
           boardTitle={boardData.board.title}
+          activeProjectId={boardData.board.id}
+          projects={boardData.projects}
           onlineMembers={boardData.onlineMembers}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           activePriority={activePriority}
           onPriorityChange={setActivePriority}
           onAddColumn={handleAddColumn}
+          onProjectSelect={handleProjectSelect}
+          columnCount={boardData.columns.length}
+          taskCount={boardData.tasks.length}
         />
 
-        <DragDropContext onDragEnd={handleDragEnd}>
-          <section className="overflow-x-auto pb-3">
-            <Droppable droppableId="board-columns" direction="horizontal" type="COLUMN">
-              {(provided) => (
-                <div
-                  ref={provided.innerRef}
-                  {...provided.droppableProps}
-                  className="flex min-w-max gap-5"
-                >
-                  {sortByPosition(boardData.columns).map((column, index) => (
-                    <KanbanColumn
-                      key={column.id}
-                      column={column}
-                      columnIndex={index}
-                      tasks={tasksByColumn[column.id] ?? []}
-                      onTaskClick={setSelectedTaskId}
-                    />
-                  ))}
-                  {provided.placeholder}
-                </div>
-              )}
-            </Droppable>
-          </section>
-        </DragDropContext>
+        <ScrollArea className="w-full pb-3">
+          <KanbanProvider
+            columns={kanbanColumns}
+            data={kanbanData}
+            onDataChange={handleKanbanDataChange}
+            onColumnsChange={handleColumnsChange}
+            onDragEnd={handleKanbanDragEnd}
+            className="auto-cols-[360px] pb-1"
+          >
+            {(column) => (
+              <KanbanBoard
+                id={column.id}
+                key={column.id}
+                sortable
+                className="w-[360px] min-w-[360px] rounded-[24px] border-0 bg-slate-100/70 shadow-none ring-0"
+              >
+                <KanbanHeader dragHandle className="px-4 py-4">
+                  <div className="min-w-0">
+                    <h3 className="truncate text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
+                      {column.name}
+                    </h3>
+                    <p className="mt-1 text-sm font-semibold text-slate-900">
+                      {(tasksByColumn[column.id] ?? []).length} tasks
+                    </p>
+                  </div>
+                </KanbanHeader>
+
+                <KanbanCards id={column.id} className="gap-4 p-4">
+                  {(item) => (
+                    <KanbanCard
+                      key={item.id}
+                      id={item.id}
+                      name={item.name}
+                      className="rounded-[24px] border-0 bg-white p-5 shadow-sm ring-1 ring-slate-200/80 transition duration-200 hover:-translate-y-1 hover:shadow-lg hover:shadow-slate-200/60"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setSelectedTaskId(item.id)}
+                        className="w-full cursor-grab whitespace-normal text-left active:cursor-grabbing"
+                      >
+                        <KiboTaskCardContent task={item.task} />
+                      </button>
+                    </KanbanCard>
+                  )}
+                </KanbanCards>
+              </KanbanBoard>
+            )}
+          </KanbanProvider>
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
       </div>
 
       <TaskDetailModal task={selectedTask} onClose={() => setSelectedTaskId(null)} />

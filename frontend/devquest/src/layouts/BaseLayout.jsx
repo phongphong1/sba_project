@@ -9,7 +9,7 @@ export default function BaseLayout() {
   const [searchQuery, setSearchQuery] = useState('')
 
   const currentMeta = useMemo(() => {
-    return pageMetaMap[location.pathname] ?? pageMetaMap['/']
+    return pageMetaMap[location.pathname] ?? pageMetaMap['/dashboard']
   }, [location.pathname])
 
   return (
