@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DevQuest Login Verification</title>
+    <style>
+        /* Email clients often strip CSS, so inline styles are used below.
+           These styles are for general structure. */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #F8F9FB;
+            margin: 0;
+            padding: 0;
+            -webkit-font-smoothing: antialiased;
+        }
+        .container {
+            max-width: 600px;
+            margin: 40px auto;
+            background-color: #ffffff;
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+        .header {
+            padding: 40px 0 20px 0;
+            text-align: center;
+        }
+        .content {
+            padding: 0 40px 40px 40px;
+            text-align: center;
+            color: #334155;
+        }
+        .title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            color: #0F172A;
+        }
+        .description {
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 32px;
+        }
+        .button {
+            display: inline-block;
+            padding: 16px 32px;
+            background-color: #5051F9;
+            color: #ffffff !important;
+            text-decoration: none;
+            border-radius: 16px;
+            font-weight: 600;
+            font-size: 16px;
+            transition: transform 0.2s;
+        }
+        .footer {
+            padding: 24px;
+            background-color: #F1F5F9;
+            text-align: center;
+            font-size: 12px;
+            color: #64748B;
+        }
+        .magic-link-raw {
+            word-break: break-all;
+            font-size: 12px;
+            color: #94A3B8;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <!-- Logo Section -->
+    <div class="header">
+        <h1 style="color: #5051F9; margin: 0; font-size: 28px; letter-spacing: -1px;">DEVQUEST.</h1>
+    </div>
+
+    <!-- Main Content -->
+    <div class="content">
+        <h2 class="title">Log in with Magic Link</h2>
+        <p class="description">
+            Hello <span th:text="${fullname}" style="font-weight: 600;">User</span>,<br/>
+            You (or someone else) just requested to log in to your <strong>DevQuest</strong> account.
+            Please click the button below to complete the verification process.
+        </p>
+
+        <!-- Action Button -->
+        <a th:href="${magicLink}" class="button">Log in to DevQuest</a>
+
+        <p style="margin-top: 32px; font-size: 14px; color: #64748B;">
+            This link will expire in <span th:text="${expiryTime}">15</span> minutes.<br/>
+            If you did not make this request, please safely ignore this email.
+        </p>
+
+        <!-- Fallback Link -->
+        <div class="content" style="padding-top: 0;">
+            <p style="font-size: 12px; color: #94A3B8; margin-bottom: 8px;">If the button above doesn't work, copy this link into your browser:</p>
+            <div class="magic-link-raw" th:text="${magicLink}">https://devquest.com/auth/magic-link?token=...</div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <p>&copy; 2026 DevQuest Team. Built for modern builders.</p>
+        <p>You received this email because you registered an account on our system.</p>
+    </div>
+</div>
+</body>
+</html>
