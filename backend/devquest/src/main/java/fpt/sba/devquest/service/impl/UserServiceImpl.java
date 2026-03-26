@@ -78,7 +78,7 @@ public class UserServiceImpl implements UserService {
                         Instant activeFrom = member.getJoinedAt() != null ? member.getJoinedAt() : member.getWorkspace().getCreatedAt();
 
                         return new MyWorkspaceResponse(
-                                        "workspace-" + workspaceId,
+                                        "" + workspaceId,
                                         member.getWorkspace().getName(),
                                         member.getWorkspace().getDescription(),
                                         normalizeRole(member.getRole()),

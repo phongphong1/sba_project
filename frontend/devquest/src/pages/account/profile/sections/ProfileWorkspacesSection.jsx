@@ -1,19 +1,70 @@
+import { useState } from 'react'
 import { CalendarDays, FolderKanban } from 'lucide-react'
 import EmptyStatePanel from '@/components/common/EmptyStatePanel'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { octomSecondaryButtonClass } from '@/constants/uiStyles'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  octomInputClass,
+  octomPrimaryButtonClass,
+  octomSecondaryButtonClass,
+} from '@/constants/uiStyles'
 
 export default function ProfileWorkspacesSection({
   workspaceList,
   isLoadingWorkspaces,
+  isCreatingWorkspace,
   activeSinceFallback,
   getPreferredBoardId,
   onOpenWorkspace,
   onOpenBoard,
   onRefresh,
+  onCreateWorkspace,
 }) {
+  const [workspaceForm, setWorkspaceForm] = useState({
+    name: '',
+    description: '',
+  })
+  const [workspaceError, setWorkspaceError] = useState('')
+
+  const handleFieldChange = (field, value) => {
+    setWorkspaceForm((current) => ({
+      ...current,
+      [field]: value,
+    }))
+
+    if (workspaceError) {
+      setWorkspaceError('')
+    }
+  }
+
+  const handleCreateWorkspace = async () => {
+    const name = workspaceForm.name.trim()
+    const description = workspaceForm.description.trim()
+
+    if (!name) {
+      setWorkspaceError('Workspace name is required.')
+      return
+    }
+
+    try {
+      await onCreateWorkspace({
+        name,
+        description,
+      })
+
+      setWorkspaceForm({
+        name: '',
+        description: '',
+      })
+      setWorkspaceError('')
+    } catch {
+      // Errors are surfaced via toast in the parent component.
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -22,6 +73,47 @@ export default function ProfileWorkspacesSection({
           Workspaces and boards you are following
         </h2>
       </div>
+
+      <Card className="rounded-[22px] border-0 bg-white px-5 py-5 shadow-sm ring-1 ring-slate-200/70">
+        <div className="space-y-4">
+          <div>
+            <p className="text-sm font-semibold text-slate-900">Create a new workspace</p>
+            <p className="mt-1 text-sm text-slate-500">
+              Add a workspace for your team and start building boards.
+            </p>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_220px] md:items-start">
+            <div className="space-y-3">
+              <Input
+                type="text"
+                value={workspaceForm.name}
+                onChange={(event) => handleFieldChange('name', event.target.value)}
+                placeholder="Workspace name"
+                className={octomInputClass}
+                disabled={isCreatingWorkspace}
+              />
+              <Textarea
+                value={workspaceForm.description}
+                onChange={(event) => handleFieldChange('description', event.target.value)}
+                placeholder="Short description (optional)"
+                className={`${octomInputClass} min-h-24 py-3`}
+                disabled={isCreatingWorkspace}
+              />
+              {workspaceError ? <p className="text-sm text-red-500">{workspaceError}</p> : null}
+            </div>
+
+            <Button
+              type="button"
+              onClick={handleCreateWorkspace}
+              className={`h-11 ${octomPrimaryButtonClass}`}
+              disabled={isCreatingWorkspace}
+            >
+              {isCreatingWorkspace ? 'Creating workspace...' : 'Create workspace'}
+            </Button>
+          </div>
+        </div>
+      </Card>
 
       {isLoadingWorkspaces ? (
         <Card className="rounded-[22px] border-0 bg-slate-50 px-5 py-5 text-sm text-slate-500 shadow-none ring-1 ring-slate-200/70">

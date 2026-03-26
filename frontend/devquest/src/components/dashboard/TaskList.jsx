@@ -82,11 +82,10 @@ function TaskItem({ task, onToggleReminder }) {
               type="button"
               onClick={() => onToggleReminder(task.id)}
               variant={task.reminderEnabled ? 'default' : 'outline'}
-              className={`px-4 text-sm font-semibold ${
-                task.reminderEnabled
+              className={`px-4 text-sm font-semibold ${task.reminderEnabled
                   ? 'bg-[#5051F9] text-white hover:bg-[#4344dd]'
                   : `${octomSecondaryButtonClass} border-slate-200 bg-white text-slate-600 hover:bg-slate-100`
-              }`}
+                }`}
             >
               Reminder
             </Button>
@@ -97,15 +96,17 @@ function TaskItem({ task, onToggleReminder }) {
   )
 }
 
-function EmptyTaskState() {
+function EmptyTaskState({ hasActiveSearch }) {
   return (
     <div className="rounded-[24px] border border-dashed border-slate-200 bg-slate-50 px-6 py-10 text-center text-sm text-slate-500">
-      No tasks match the current search.
+      {hasActiveSearch
+        ? 'No tasks match the current search.'
+        : 'No tasks available yet. Add one from Quick Add to get started.'}
     </div>
   )
 }
 
-export default function TaskList({ tasks, onToggleReminder }) {
+export default function TaskList({ tasks, onToggleReminder, hasActiveSearch = false }) {
   return (
     <Card className={octomCardClass}>
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -132,7 +133,7 @@ export default function TaskList({ tasks, onToggleReminder }) {
             <TaskItem key={task.id} task={task} onToggleReminder={onToggleReminder} />
           ))
         ) : (
-          <EmptyTaskState />
+          <EmptyTaskState hasActiveSearch={hasActiveSearch} />
         )}
       </div>
     </Card>

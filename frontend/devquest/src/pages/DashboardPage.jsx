@@ -27,13 +27,7 @@ export default function DashboardPage() {
 function DashboardWorkspaceView({ workspaceId, searchQuery }) {
   const { dashboardData, isLoadingDashboard, dashboardError, refreshDashboard } =
     useDashboardData(workspaceId)
-  const [quickTasks, setQuickTasks] = useState([])
   const [reminderState, setReminderState] = useState({})
-  const [draftTask, setDraftTask] = useState({
-    title: '',
-    assigneeId: '',
-    dueDate: '',
-  })
   const team = useMemo(() => dashboardData?.members ?? [], [dashboardData?.members])
   const boardSummaries = useMemo(
     () => dashboardData?.boardSummaries ?? [],
@@ -45,15 +39,6 @@ function DashboardWorkspaceView({ workspaceId, searchQuery }) {
     () => dashboardData?.weeklyOutput ?? [],
     [dashboardData?.weeklyOutput],
   )
-
-  const effectiveDraftTask = useMemo(() => {
-    if (draftTask.assigneeId || !team.length) return draftTask
-
-    return {
-      ...draftTask,
-      assigneeId: team[0].id,
-    }
-  }, [draftTask, team])
 
   const dashboardStats = useMemo(
     () => [
@@ -89,7 +74,7 @@ function DashboardWorkspaceView({ workspaceId, searchQuery }) {
   )
 
   const filteredTasks = useMemo(() => {
-    const allTasks = [...quickTasks, ...workspaceTasks].map((task) => ({
+    const allTasks = workspaceTasks.map((task) => ({
       ...task,
       priority: normalizePriority(task.priority),
       reminderEnabled: reminderState[task.id] ?? task.reminderEnabled ?? false,
@@ -104,7 +89,7 @@ function DashboardWorkspaceView({ workspaceId, searchQuery }) {
         `${task.title} ${task.assignee?.name ?? ''} ${task.status} ${task.sprint}`.toLowerCase()
       return combined.includes(normalizedQuery)
     })
-  }, [quickTasks, reminderState, searchQuery, workspaceTasks])
+  }, [reminderState, searchQuery, workspaceTasks])
 
   if (isLoadingDashboard && !dashboardData) {
     return (
@@ -134,83 +119,11 @@ function DashboardWorkspaceView({ workspaceId, searchQuery }) {
     return <Navigate to="/workspace-empty" replace />
   }
 
-  if (!boardSummaries.length) {
-    return (
-      <main className="flex min-h-[420px] items-center">
-        <EmptyStatePanel
-          eyebrow="Workspace boards"
-          title="This workspace has no boards yet"
-          description="The workspace is available, but there is no board to organize columns and tasks yet. Once the backend returns the first board, this dashboard will start summarizing activity automatically."
-          primaryActionLabel="Refresh view"
-          onPrimaryAction={() => {
-            void refreshDashboard()
-          }}
-        />
-      </main>
-    )
-  }
-
   const handleToggleReminder = (taskId) => {
     setReminderState((current) => ({
       ...current,
       [taskId]: !current[taskId],
     }))
-  }
-
-  const handleDraftChange = (field, value) => {
-    setDraftTask((currentDraft) => ({
-      ...currentDraft,
-      [field]: value,
-    }))
-  }
-
-  const handleQuickAddTask = (event) => {
-    event.preventDefault()
-
-    if (!effectiveDraftTask.title.trim()) return
-
-    const assignee =
-      team.find((member) => member.id === effectiveDraftTask.assigneeId) ?? team[0]
-
-    if (!assignee) return
-
-    setQuickTasks((currentTasks) => [
-      {
-        id: String(Date.now()),
-        boardId: boardSummaries[0]?.id ?? null,
-        boardName: boardSummaries[0]?.name ?? 'General board',
-        position: currentTasks.length + 1,
-        title: effectiveDraftTask.title.trim(),
-        status: 'todo',
-        priority: 'Medium',
-        sprint: boardSummaries[0]?.name ?? 'Backlog',
-        progress: 18,
-        dueDate: effectiveDraftTask.dueDate.trim() || 'Tomorrow, 02:00 PM',
-        reminderEnabled: false,
-        assignee: {
-          id: assignee.id,
-          name: assignee.fullName,
-          avatar: assignee.avatar,
-          color: assignee.color,
-        },
-        members: [
-          {
-            id: assignee.id,
-            name: assignee.fullName,
-            avatar: assignee.avatar,
-            color: assignee.color,
-          },
-        ],
-        estimateHours: 6,
-      },
-      ...currentTasks,
-    ])
-
-    setDraftTask({
-      title: '',
-      assigneeId: team[0]?.id ?? '',
-      dueDate: '',
-    })
   }
 
   return (
@@ -223,16 +136,14 @@ function DashboardWorkspaceView({ workspaceId, searchQuery }) {
         </section>
 
         <AnalyticsChart data={weeklyOutput} />
-        <TaskList tasks={filteredTasks} onToggleReminder={handleToggleReminder} />
+        <TaskList
+          tasks={filteredTasks}
+          onToggleReminder={handleToggleReminder}
+          hasActiveSearch={Boolean(searchQuery.trim())}
+        />
       </main>
 
-      <RightPanel
-        schedule={schedule}
-        team={team.map((member) => ({ ...member, name: member.fullName }))}
-        draftTask={effectiveDraftTask}
-        onDraftChange={handleDraftChange}
-        onSubmit={handleQuickAddTask}
-      />
+      <RightPanel schedule={schedule} />
     </div>
   )
 }

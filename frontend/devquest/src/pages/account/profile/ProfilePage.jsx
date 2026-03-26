@@ -27,9 +27,14 @@ import ProfileWorkspacesSection from './sections/ProfileWorkspacesSection'
 
 export default function ProfilePage() {
   const navigate = useNavigate()
-  const { getPreferredBoardId } = useWorkspaceShell()
-  const { handleGetMe, handleUpdateProfile, handleChangePassword, handleGetWorkspaces } =
-    useUserActions()
+  const { getPreferredBoardId, refreshWorkspaces } = useWorkspaceShell()
+  const {
+    handleGetMe,
+    handleUpdateProfile,
+    handleChangePassword,
+    handleGetWorkspaces,
+    handleCreateWorkspace,
+  } = useUserActions()
   const [activeTab, setActiveTab] = useState('general')
   const [profileData, setProfileData] = useState(createEmptyProfileData)
   const [profileForm, setProfileForm] = useState(() =>
@@ -42,6 +47,7 @@ export default function ProfilePage() {
   const [isSavingProfile, setIsSavingProfile] = useState(false)
   const [isSavingPassword, setIsSavingPassword] = useState(false)
   const [isLoadingWorkspaces, setIsLoadingWorkspaces] = useState(false)
+  const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false)
   const [hasLoadedWorkspaceList, setHasLoadedWorkspaceList] = useState(false)
   const [hasProfileError, setHasProfileError] = useState(false)
 
@@ -168,6 +174,26 @@ export default function ProfilePage() {
     setHasLoadedWorkspaceList(false)
   }
 
+  const handleCreateWorkspaceSubmit = async (values) => {
+    setIsCreatingWorkspace(true)
+
+    try {
+      const result = await handleCreateWorkspace(values)
+      const workspaceResult = await handleGetWorkspaces()
+
+      setWorkspaceList(normalizeWorkspaceList(workspaceResult.data))
+      setHasLoadedWorkspaceList(true)
+      await refreshWorkspaces()
+
+      toast.success(result.message)
+    } catch (error) {
+      toast.error(getRequestErrorMessage(error, 'Unable to create workspace.'))
+      throw error
+    } finally {
+      setIsCreatingWorkspace(false)
+    }
+  }
+
   const handleOpenWorkspace = (workspaceId) => {
     navigate(`/w/${workspaceId}/dashboard`)
   }
@@ -287,8 +313,8 @@ export default function ProfilePage() {
                 onClick={() => setActiveTab(tab.id)}
                 variant={isActive ? 'default' : 'outline'}
                 className={`rounded-full px-4 text-sm font-semibold ${isActive
-                    ? 'bg-[#5051F9] text-white shadow-lg shadow-indigo-200'
-                    : 'border-slate-200 bg-white text-slate-500 shadow-none hover:bg-slate-50'
+                  ? 'bg-[#5051F9] text-white shadow-lg shadow-indigo-200'
+                  : 'border-slate-200 bg-white text-slate-500 shadow-none hover:bg-slate-50'
                   }`}
               >
                 {tab.label}
@@ -323,11 +349,13 @@ export default function ProfilePage() {
           <ProfileWorkspacesSection
             workspaceList={workspaceList}
             isLoadingWorkspaces={isLoadingWorkspaces}
+            isCreatingWorkspace={isCreatingWorkspace}
             activeSinceFallback={profileData.stats.activeSince}
             getPreferredBoardId={getPreferredBoardId}
             onOpenWorkspace={handleOpenWorkspace}
             onOpenBoard={handleOpenBoard}
             onRefresh={handleRefreshWorkspaces}
+            onCreateWorkspace={handleCreateWorkspaceSubmit}
           />
         ) : null}
       </Card>

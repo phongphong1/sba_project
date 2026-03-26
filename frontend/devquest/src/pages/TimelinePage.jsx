@@ -173,6 +173,8 @@ export default function TimelinePage() {
       })),
     [boardStartDate, filteredTasks, timelineView],
   )
+  const hasTimelineTasks = timelineData.tasks.length > 0
+  const hasActiveTimelineFilters = Boolean(searchQuery.trim()) || activeMemberId !== 'ALL'
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
@@ -212,18 +214,6 @@ export default function TimelinePage() {
           description={timelineError}
           primaryActionLabel="Refresh view"
           onPrimaryAction={() => window.location.reload()}
-        />
-      </main>
-    )
-  }
-
-  if (!timelineData.tasks.length) {
-    return (
-      <main className="flex min-h-[420px] items-center">
-        <EmptyStatePanel
-          eyebrow="Timeline data"
-          title="No timeline tasks available"
-          description="This workspace does not have timeline data yet, and the page is no longer falling back to mock tasks."
         />
       </main>
     )
@@ -404,8 +394,12 @@ export default function TimelinePage() {
             </GanttProvider>
           </div>
         ) : (
-          <div className="flex min-h-[320px] items-center justify-center">
-            <Card className={octomLoadingCardClass}>No tasks match the current timeline filters.</Card>
+          <div className="flex min-h-[320px] items-center justify-center rounded-[20px] border border-dashed border-slate-200 bg-slate-50 px-6 text-center text-sm text-slate-500">
+            {hasTimelineTasks
+              ? hasActiveTimelineFilters
+                ? 'No timeline tasks match the current member or search filters.'
+                : 'No timeline bars are available in the current view.'
+              : 'No timeline tasks available for this workspace yet.'}
           </div>
         )}
       </Card>

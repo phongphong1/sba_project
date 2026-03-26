@@ -13,6 +13,8 @@ import { PRIMARY_COLOR } from '@/constants/theme'
 import { octomFilterBadgeClass, octomInteractiveCardClass } from '@/constants/uiStyles'
 
 export default function AnalyticsChart({ data }) {
+  const hasData = Array.isArray(data) && data.length > 0
+
   return (
     <Card className={octomInteractiveCardClass}>
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -36,47 +38,53 @@ export default function AnalyticsChart({ data }) {
       </div>
 
       <div className="mt-6 h-72 w-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 10, right: 8, left: -20, bottom: 0 }}>
-            <defs>
-              <linearGradient id="taskDoneGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={PRIMARY_COLOR} stopOpacity={0.4} />
-                <stop offset="95%" stopColor={PRIMARY_COLOR} stopOpacity={0.04} />
-              </linearGradient>
-            </defs>
+        {hasData ? (
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={data} margin={{ top: 10, right: 8, left: -20, bottom: 0 }}>
+              <defs>
+                <linearGradient id="taskDoneGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor={PRIMARY_COLOR} stopOpacity={0.4} />
+                  <stop offset="95%" stopColor={PRIMARY_COLOR} stopOpacity={0.04} />
+                </linearGradient>
+              </defs>
 
-            <CartesianGrid stroke="#E5E7EB" strokeDasharray="6 6" vertical={false} />
-            <XAxis
-              dataKey="label"
-              tickLine={false}
-              axisLine={false}
-              tick={{ fill: '#94A3B8', fontSize: 12 }}
-            />
-            <YAxis tickLine={false} axisLine={false} tick={{ fill: '#94A3B8', fontSize: 12 }} />
-            <Tooltip
-              cursor={{ stroke: '#C7D2FE', strokeWidth: 1 }}
-              contentStyle={{
-                border: '1px solid #E2E8F0',
-                borderRadius: '18px',
-                boxShadow: '0 16px 40px rgba(15, 23, 42, 0.08)',
-              }}
-            />
-            <Area
-              type="monotone"
-              dataKey="completedTasks"
-              stroke={PRIMARY_COLOR}
-              strokeWidth={4}
-              fill="url(#taskDoneGradient)"
-            />
-            <Area
-              type="monotone"
-              dataKey="goalTasks"
-              stroke="#CBD5E1"
-              strokeWidth={2}
-              fill="transparent"
-            />
-          </AreaChart>
-        </ResponsiveContainer>
+              <CartesianGrid stroke="#E5E7EB" strokeDasharray="6 6" vertical={false} />
+              <XAxis
+                dataKey="label"
+                tickLine={false}
+                axisLine={false}
+                tick={{ fill: '#94A3B8', fontSize: 12 }}
+              />
+              <YAxis tickLine={false} axisLine={false} tick={{ fill: '#94A3B8', fontSize: 12 }} />
+              <Tooltip
+                cursor={{ stroke: '#C7D2FE', strokeWidth: 1 }}
+                contentStyle={{
+                  border: '1px solid #E2E8F0',
+                  borderRadius: '18px',
+                  boxShadow: '0 16px 40px rgba(15, 23, 42, 0.08)',
+                }}
+              />
+              <Area
+                type="monotone"
+                dataKey="completedTasks"
+                stroke={PRIMARY_COLOR}
+                strokeWidth={4}
+                fill="url(#taskDoneGradient)"
+              />
+              <Area
+                type="monotone"
+                dataKey="goalTasks"
+                stroke="#CBD5E1"
+                strokeWidth={2}
+                fill="transparent"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="flex h-full items-center justify-center rounded-[20px] border border-dashed border-slate-200 bg-slate-50 px-6 text-center text-sm text-slate-500">
+            No weekly output data yet. Completed and goal trends will appear here.
+          </div>
+        )}
       </div>
     </Card>
   )

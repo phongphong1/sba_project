@@ -41,6 +41,7 @@ export default function BoardHeader({
   onBoardSelect,
   columnCount,
   taskCount,
+  canAddColumn = true,
 }) {
   const [activeDrawer, setActiveDrawer] = useState(null)
   const isBoardDrawerOpen = activeDrawer === 'board'
@@ -59,34 +60,35 @@ export default function BoardHeader({
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-          <Button
-            type="button"
-            variant="secondary"
-            className={`h-12 ${octomSecondaryButtonClass}`}
-            onClick={() => setActiveDrawer('board')}
-          >
-            <FolderKanban className="h-4 w-4" />
-            Switch board
-          </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              className={`h-12 ${octomSecondaryButtonClass}`}
+              onClick={() => setActiveDrawer('board')}
+            >
+              <FolderKanban className="h-4 w-4" />
+              Switch board
+            </Button>
 
-          <Button
-            type="button"
-            variant="secondary"
-            className={`h-12 ${octomSecondaryButtonClass}`}
-            onClick={() => setActiveDrawer('members')}
-          >
-            <Users className="h-4 w-4" />
-            {workspaceMembers.length} members
-          </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              className={`h-12 ${octomSecondaryButtonClass}`}
+              onClick={() => setActiveDrawer('members')}
+            >
+              <Users className="h-4 w-4" />
+              {workspaceMembers.length} members
+            </Button>
 
-          <Button
-            type="button"
-            onClick={onAddColumn}
-            className={`h-12 ${octomPrimaryButtonClass}`}
-          >
-            <Plus className="h-4 w-4" />
-            Add Column
-          </Button>
+            <Button
+              type="button"
+              onClick={onAddColumn}
+              className={`h-12 ${octomPrimaryButtonClass}`}
+              disabled={!canAddColumn}
+            >
+              <Plus className="h-4 w-4" />
+              Add Column
+            </Button>
           </div>
         </div>
 
@@ -120,11 +122,10 @@ export default function BoardHeader({
                   type="button"
                   onClick={() => onPriorityChange(priority)}
                   variant={isActive ? 'default' : 'outline'}
-                  className={`rounded-full px-4 text-sm font-semibold ${
-                    isActive
+                  className={`rounded-full px-4 text-sm font-semibold ${isActive
                       ? 'bg-[#5051F9] text-white shadow-lg shadow-indigo-200'
                       : 'border-slate-200 bg-white text-slate-500 shadow-none hover:bg-slate-50'
-                  }`}
+                    }`}
                 >
                   {priority}
                 </Button>
@@ -174,11 +175,10 @@ export default function BoardHeader({
                         onBoardSelect(board.id)
                         setActiveDrawer(null)
                       }}
-                      className={`w-full rounded-[20px] border px-5 py-4 text-left transition ${
-                        isActive
+                      className={`w-full rounded-[20px] border px-5 py-4 text-left transition ${isActive
                           ? 'border-[#5051F9] bg-indigo-50 shadow-sm'
                           : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
@@ -191,9 +191,8 @@ export default function BoardHeader({
                           </p>
                         </div>
                         <div
-                          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
-                            isActive ? 'bg-[#5051F9] text-white' : 'bg-slate-100 text-slate-400'
-                          }`}
+                          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${isActive ? 'bg-[#5051F9] text-white' : 'bg-slate-100 text-slate-400'
+                            }`}
                         >
                           <Check className="h-4 w-4" />
                         </div>

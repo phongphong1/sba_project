@@ -5,7 +5,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
@@ -75,11 +74,10 @@ export default function AvatarUploadDialog({ fullName, upload }) {
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             disabled={isUploading}
-            className={`flex min-h-64 w-full flex-col items-center justify-center rounded-[24px] border border-dashed px-6 py-8 text-center transition ${
-              isDragging
-                ? 'border-[#5051F9] bg-indigo-50'
-                : 'border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-white'
-            }`}
+            className={`flex min-h-64 w-full flex-col items-center justify-center rounded-[24px] border border-dashed px-6 py-8 text-center transition ${isDragging
+              ? 'border-[#5051F9] bg-indigo-50'
+              : 'border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-white'
+              }`}
           >
             {previewUrl ? (
               <img
@@ -103,21 +101,6 @@ export default function AvatarUploadDialog({ fullName, upload }) {
             </p>
           </button>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-[20px] bg-slate-50 p-4">
-            <div className="text-sm text-slate-500">
-              Images only. The uploaded file will be used as your new avatar.
-            </div>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={openFilePicker}
-              disabled={isUploading}
-              className={`h-11 ${octomSecondaryButtonClass}`}
-            >
-              Choose image
-            </Button>
-          </div>
-
           {isUploading || uploadProgress > 0 ? (
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm font-medium text-slate-500">
@@ -136,7 +119,7 @@ export default function AvatarUploadDialog({ fullName, upload }) {
           {errorMessage ? <p className="text-sm text-red-500">{errorMessage}</p> : null}
         </div>
 
-        <DialogFooter className="rounded-b-[28px] border-slate-200 bg-slate-50/80">
+        <div className="flex flex-col-reverse gap-2 rounded-b-[28px] border-t border-slate-200 bg-slate-50/80 px-6 py-4 sm:flex-row sm:justify-end">
           <Button
             type="button"
             variant="secondary"
@@ -164,7 +147,7 @@ export default function AvatarUploadDialog({ fullName, upload }) {
               </>
             )}
           </Button>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   )

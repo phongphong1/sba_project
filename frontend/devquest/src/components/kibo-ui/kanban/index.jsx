@@ -34,6 +34,11 @@ const KanbanColumnContext = createContext({
   listeners: undefined,
 })
 
+const KanbanCardContext = createContext({
+  attributes: {},
+  listeners: undefined,
+})
+
 export const KanbanBoard = ({ id, children, className, sortable = false }) => {
   const { isOver, setNodeRef } = useDroppable({
     id,
@@ -48,9 +53,9 @@ export const KanbanBoard = ({ id, children, className, sortable = false }) => {
 
   const style = sortable
     ? {
-        transition: sortableState.transition,
-        transform: CSS.Transform.toString(sortableState.transform),
-      }
+      transition: sortableState.transition,
+      transform: CSS.Transform.toString(sortableState.transform),
+    }
     : undefined
 
   const columnContextValue = useMemo(
@@ -84,7 +89,7 @@ export const KanbanBoard = ({ id, children, className, sortable = false }) => {
   )
 }
 
-export const KanbanCard = ({ id, name, children, className }) => {
+export const KanbanCard = ({ id, name, children, className, dragHandle = false }) => {
   const {
     attributes,
     listeners,
@@ -105,18 +110,34 @@ export const KanbanCard = ({ id, name, children, className }) => {
     transform: CSS.Transform.toString(transform),
   }
 
+  const cardContextValue = useMemo(
+    () => ({
+      attributes,
+      listeners,
+    }),
+    [attributes, listeners]
+  )
+
   return (
     <>
-      <div style={style} {...listeners} {...attributes} ref={setNodeRef}>
-        <Card
-          className={cn(
-            "cursor-grab gap-4 rounded-md p-3 shadow-sm",
-            isDragging && "pointer-events-none cursor-grabbing opacity-30",
-            className
-          )}
-        >
-          {children ?? <p className="m-0 font-medium text-sm">{name}</p>}
-        </Card>
+      <div
+        style={style}
+        {...(dragHandle ? {} : listeners)}
+        {...(dragHandle ? {} : attributes)}
+        ref={setNodeRef}
+      >
+        <KanbanCardContext.Provider value={cardContextValue}>
+          <Card
+            className={cn(
+              "gap-4 rounded-md p-3 shadow-sm",
+              dragHandle && "cursor-grab",
+              isDragging && "pointer-events-none cursor-grabbing opacity-30",
+              className
+            )}
+          >
+            {children ?? <p className="m-0 font-medium text-sm">{name}</p>}
+          </Card>
+        </KanbanCardContext.Provider>
       </div>
       {activeCardId === id && (
         <Tunnel.In>
@@ -132,6 +153,19 @@ export const KanbanCard = ({ id, name, children, className }) => {
         </Tunnel.In>
       )}
     </>
+  )
+}
+
+export const KanbanCardDragHandle = ({ className, ...props }) => {
+  const card = useContext(KanbanCardContext)
+
+  return (
+    <div
+      className={cn("cursor-grab touch-none active:cursor-grabbing", className)}
+      {...card.attributes}
+      {...card.listeners}
+      {...props}
+    />
   )
 }
 
@@ -164,6 +198,19 @@ export const KanbanHeader = ({ className, dragHandle = false, ...props }) => {
       )}
       {...(dragHandle ? column.attributes : {})}
       {...(dragHandle ? column.listeners : {})}
+      {...props}
+    />
+  )
+}
+
+export const KanbanDragHandle = ({ className, ...props }) => {
+  const column = useContext(KanbanColumnContext)
+
+  return (
+    <div
+      className={cn("cursor-grab active:cursor-grabbing", className)}
+      {...column.attributes}
+      {...column.listeners}
       {...props}
     />
   )

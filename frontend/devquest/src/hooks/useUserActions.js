@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import userApi from '@/api/userApi'
+import workspaceApi from '@/api/workspaceApi'
 
 const resolveMessage = (payload, fallbackMessage) =>
   payload?.message ?? payload?.data?.message ?? fallbackMessage
@@ -48,6 +49,15 @@ export function useUserActions() {
         return {
           success: true,
           data,
+        }
+      },
+      handleCreateWorkspace: async (values) => {
+        const data = await workspaceApi.create(values)
+
+        return {
+          success: true,
+          data,
+          message: resolveMessage(data, 'Workspace created successfully.'),
         }
       },
     }),
