@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useOutletContext } from 'react-router-dom'
+import { Navigate, useNavigate, useOutletContext, useParams } from 'react-router-dom'
+import EmptyStatePanel from '@/components/common/EmptyStatePanel'
 import {
   KanbanBoard,
   KanbanCard,
@@ -13,7 +14,8 @@ import TaskDetailModal from '@/components/tasks/TaskDetailModal'
 import { Card } from '@/components/ui/card'
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
 import { octomLoadingCardClass } from '@/constants/uiStyles'
-import { MOCK_TASKS_DATA } from '@/data/mockTasksBoard'
+import { DEFAULT_WORKSPACE_ID } from '@/data/mockWorkspaceGraph'
+import { useWorkspaceShell } from '@/contexts/WorkspaceShellContext'
 
 function sortByPosition(items) {
   return [...items].sort((a, b) => a.position - b.position)
@@ -45,18 +47,63 @@ function reindexColumns(columns) {
 }
 
 export default function TasksPage() {
-  const { searchQuery, setSearchQuery } = useOutletContext()
+  const navigate = useNavigate()
+  const { workspaceId, boardId } = useParams()
+  const { currentWorkspace } = useOutletContext()
+  const { getHydratedBoard, getWorkspaceOverview, getPreferredBoardId } = useWorkspaceShell()
   const [boardData, setBoardData] = useState(null)
+  const [searchQuery, setSearchQuery] = useState('')
   const [activePriority, setActivePriority] = useState('ALL')
   const [selectedTaskId, setSelectedTaskId] = useState(null)
+  const workspaceOverview = currentWorkspace ? getWorkspaceOverview(currentWorkspace.id) : null
+  const resolvedBoard = useMemo(() => {
+    if (!workspaceId || !boardId) return null
+
+    return getHydratedBoard(workspaceId, boardId)
+  }, [boardId, getHydratedBoard, workspaceId])
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setBoardData(MOCK_TASKS_DATA)
-    }, 0)
+    setBoardData(resolvedBoard)
+    setSearchQuery('')
+    setSelectedTaskId(null)
+  }, [resolvedBoard])
 
-    return () => window.clearTimeout(timer)
-  }, [])
+  if (!currentWorkspace || workspaceId !== currentWorkspace.id) {
+    return <Navigate to={DEFAULT_WORKSPACE_ID ? `/w/${DEFAULT_WORKSPACE_ID}/dashboard` : '/workspace-empty'} replace />
+  }
+
+  if (!workspaceOverview) {
+    return <Navigate to={DEFAULT_WORKSPACE_ID ? `/w/${DEFAULT_WORKSPACE_ID}/dashboard` : '/workspace-empty'} replace />
+  }
+
+  const preferredBoardId = getPreferredBoardId(currentWorkspace.id)
+
+  if (!boardId && preferredBoardId) {
+    return <Navigate to={`/w/${currentWorkspace.id}/boards/${preferredBoardId}`} replace />
+  }
+
+  if (boardId && !resolvedBoard && preferredBoardId) {
+    return (
+      <Navigate
+        to={`/w/${currentWorkspace.id}/boards/${preferredBoardId}`}
+        replace
+      />
+    )
+  }
+
+  if (!workspaceOverview.boardSummaries.length) {
+    return (
+      <main className="flex min-h-[420px] items-center">
+        <EmptyStatePanel
+          eyebrow="Workspace boards"
+          title="No board exists in this workspace yet"
+          description="Boards are the layer between workspace members and task columns. As soon as the backend returns a board list, users will be able to switch boards from this screen."
+          primaryActionLabel="Back to dashboard"
+          onPrimaryAction={() => navigate(`/w/${currentWorkspace.id}/dashboard`)}
+        />
+      </main>
+    )
+  }
 
   const filteredTasks = useMemo(() => {
     if (!boardData) return []
@@ -71,7 +118,7 @@ export default function TasksPage() {
       if (!normalizedQuery) return true
 
       const haystack =
-        `${task.title} ${task.assignee.name} ${task.priority} ${task.dueDate}`.toLowerCase()
+        `${task.title} ${task.assignee?.name ?? ''} ${task.priority} ${task.dueDate}`.toLowerCase()
 
       return haystack.includes(normalizedQuery)
     })
@@ -102,7 +149,7 @@ export default function TasksPage() {
     () =>
       orderedColumns.map((column) => ({
         id: column.id,
-        name: column.title,
+        name: column.name,
       })),
     [orderedColumns],
   )
@@ -128,7 +175,7 @@ export default function TasksPage() {
           ...currentData.columns,
           {
             id: `col-${Date.now()}`,
-            title: `New Column ${nextPosition}`,
+            name: `New Column ${nextPosition}`,
             position: nextPosition * 1000,
           },
         ],
@@ -136,23 +183,10 @@ export default function TasksPage() {
     })
   }
 
-  const handleProjectSelect = (projectId) => {
-    setBoardData((currentData) => {
-      const nextProject = currentData.projects.find((project) => project.id === projectId)
+  const handleBoardSelect = (nextBoardId) => {
+    if (nextBoardId === boardData?.id) return
 
-      if (!nextProject || nextProject.id === currentData.board.id) {
-        return currentData
-      }
-
-      return {
-        ...currentData,
-        board: {
-          id: nextProject.id,
-          title: nextProject.title,
-          description: nextProject.description,
-        },
-      }
-    })
+    navigate(`/w/${currentWorkspace.id}/boards/${nextBoardId}`)
   }
 
   const handleColumnsChange = (newColumns) => {
@@ -238,70 +272,94 @@ export default function TasksPage() {
     <>
       <div className="space-y-6">
         <BoardHeader
-          boardTitle={boardData.board.title}
-          activeProjectId={boardData.board.id}
-          projects={boardData.projects}
-          onlineMembers={boardData.onlineMembers}
+          workspaceName={currentWorkspace.name}
+          boardTitle={boardData.name}
+          boardDescription={boardData.description}
+          activeBoardId={boardData.id}
+          boards={workspaceOverview.boardSummaries}
+          workspaceMembers={workspaceOverview.members}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           activePriority={activePriority}
           onPriorityChange={setActivePriority}
           onAddColumn={handleAddColumn}
-          onProjectSelect={handleProjectSelect}
+          onBoardSelect={handleBoardSelect}
           columnCount={boardData.columns.length}
           taskCount={boardData.tasks.length}
         />
 
-        <ScrollArea className="w-full pb-3">
-          <KanbanProvider
-            columns={kanbanColumns}
-            data={kanbanData}
-            onDataChange={handleKanbanDataChange}
-            onColumnsChange={handleColumnsChange}
-            onDragEnd={handleKanbanDragEnd}
-            className="auto-cols-[360px] pb-1"
-          >
-            {(column) => (
-              <KanbanBoard
-                id={column.id}
-                key={column.id}
-                sortable
-                className="w-[360px] min-w-[360px] rounded-[24px] border-0 bg-slate-100/70 shadow-none ring-0"
-              >
-                <KanbanHeader dragHandle className="px-4 py-4">
-                  <div className="min-w-0">
-                    <h3 className="truncate text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
-                      {column.name}
-                    </h3>
-                    <p className="mt-1 text-sm font-semibold text-slate-900">
-                      {(tasksByColumn[column.id] ?? []).length} tasks
-                    </p>
-                  </div>
-                </KanbanHeader>
+        {!boardData.columns.length ? (
+          <EmptyStatePanel
+            eyebrow="Board setup"
+            title="This board has no columns yet"
+            description="Columns define the workflow for the board. Add the first column to start organizing tasks across this workspace."
+            primaryActionLabel="Add first column"
+            onPrimaryAction={handleAddColumn}
+            secondaryActionLabel="Back to dashboard"
+            onSecondaryAction={() => navigate(`/w/${currentWorkspace.id}/dashboard`)}
+          />
+        ) : (
+          <>
+            {!boardData.tasks.length ? (
+              <EmptyStatePanel
+                eyebrow="Board tasks"
+                title="This board is ready, but there are no tasks yet"
+                description="Your columns are in place. As soon as tasks arrive from the backend or task creation is connected, they will appear inside these columns."
+              />
+            ) : null}
 
-                <KanbanCards id={column.id} className="gap-4 p-4">
-                  {(item) => (
-                    <KanbanCard
-                      key={item.id}
-                      id={item.id}
-                      name={item.name}
-                      className="rounded-[24px] border-0 bg-white p-5 shadow-sm ring-1 ring-slate-200/80 transition duration-200 hover:-translate-y-1 hover:shadow-lg hover:shadow-slate-200/60"
-                    >
-                      <button
-                        type="button"
-                        onClick={() => setSelectedTaskId(item.id)}
-                        className="w-full cursor-grab whitespace-normal text-left active:cursor-grabbing"
-                      >
-                        <KiboTaskCardContent task={item.task} />
-                      </button>
-                    </KanbanCard>
-                  )}
-                </KanbanCards>
-              </KanbanBoard>
-            )}
-          </KanbanProvider>
-          <ScrollBar orientation="horizontal" />
-        </ScrollArea>
+            <ScrollArea className="w-full pb-3">
+              <KanbanProvider
+                columns={kanbanColumns}
+                data={kanbanData}
+                onDataChange={handleKanbanDataChange}
+                onColumnsChange={handleColumnsChange}
+                onDragEnd={handleKanbanDragEnd}
+                className="auto-cols-[360px] pb-1"
+              >
+                {(column) => (
+                  <KanbanBoard
+                    id={column.id}
+                    key={column.id}
+                    sortable
+                    className="w-[360px] min-w-[360px] rounded-[24px] border-0 bg-slate-100/70 shadow-none ring-0"
+                  >
+                    <KanbanHeader dragHandle className="px-4 py-4">
+                      <div className="min-w-0">
+                        <h3 className="truncate text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
+                          {column.name}
+                        </h3>
+                        <p className="mt-1 text-sm font-semibold text-slate-900">
+                          {(tasksByColumn[column.id] ?? []).length} tasks
+                        </p>
+                      </div>
+                    </KanbanHeader>
+
+                    <KanbanCards id={column.id} className="gap-4 p-4">
+                      {(item) => (
+                        <KanbanCard
+                          key={item.id}
+                          id={item.id}
+                          name={item.name}
+                          className="rounded-[24px] border-0 bg-white p-5 shadow-sm ring-1 ring-slate-200/80 transition duration-200 hover:-translate-y-1 hover:shadow-lg hover:shadow-slate-200/60"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => setSelectedTaskId(item.id)}
+                            className="w-full cursor-grab whitespace-normal text-left active:cursor-grabbing"
+                          >
+                            <KiboTaskCardContent task={item.task} />
+                          </button>
+                        </KanbanCard>
+                      )}
+                    </KanbanCards>
+                  </KanbanBoard>
+                )}
+              </KanbanProvider>
+              <ScrollBar orientation="horizontal" />
+            </ScrollArea>
+          </>
+        )}
       </div>
 
       <TaskDetailModal task={selectedTask} onClose={() => setSelectedTaskId(null)} />

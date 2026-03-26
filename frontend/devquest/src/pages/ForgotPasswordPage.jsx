@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowLeft, ArrowRight, CheckCircle2, Lock, Mail, MailOpen } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Lock, Mail, MailOpen } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { z } from 'zod'
@@ -46,6 +46,9 @@ const panelMotion = {
   exit: { opacity: 0, y: -16, transition: { duration: 0.22, ease: 'easeIn' } },
 }
 
+const resolveMessage = (payload, fallbackMessage) =>
+  payload?.message ?? payload?.data?.message ?? fallbackMessage
+
 export default function ForgotPasswordPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -53,14 +56,14 @@ export default function ForgotPasswordPage() {
   const initialView = token ? 'reset' : 'request'
   const [view, setView] = useState(initialView)
   const [emailSentTo, setEmailSentTo] = useState('')
-  const [resetSuccess, setResetSuccess] = useState(false)
   const [submitError, setSubmitError] = useState('')
+  const [requestNotice, setRequestNotice] = useState('')
   const { handleSendMagicLink, handleResetPassword } = usePasswordRecoveryActions()
 
   useEffect(() => {
     setView(token ? 'reset' : 'request')
-    setResetSuccess(false)
     setSubmitError('')
+    setRequestNotice('')
   }, [token])
 
   const requestForm = useForm({
@@ -77,9 +80,9 @@ export default function ForgotPasswordPage() {
 
   const cardTitle = useMemo(() => {
     if (view === 'check-email') return 'Check your email'
-    if (view === 'reset') return resetSuccess ? 'Password updated' : 'Create a new password'
+    if (view === 'reset') return 'Create a new password'
     return 'Forgot your password?'
-  }, [resetSuccess, view])
+  }, [view])
 
   const cardDescription = useMemo(() => {
     if (view === 'check-email') {
@@ -87,20 +90,27 @@ export default function ForgotPasswordPage() {
     }
 
     if (view === 'reset') {
-      return resetSuccess
-        ? 'Your password has been updated successfully. You can continue to your workspace.'
-        : 'Set a fresh password after verifying your reset token from the magic link.'
+      return 'Set a fresh password after verifying your reset token from the magic link.'
     }
 
     return 'Enter your email address and we will send you a magic link to securely reset your password.'
-  }, [resetSuccess, view])
+  }, [view])
 
   const onSendMagicLink = async (values) => {
     setSubmitError('')
+    setRequestNotice('')
 
     try {
-      await handleSendMagicLink(values)
+      const result = await handleSendMagicLink(values)
+      const message = resolveMessage(result?.data, 'We have sent a password reset link to your email.')
+
       setEmailSentTo(values.email)
+      setRequestNotice(message)
+
+      requestForm.reset({
+        email: values.email,
+      })
+
       setView('check-email')
     } catch (error) {
       setSubmitError(error?.response?.data?.message ?? 'Unable to send magic link right now.')
@@ -111,13 +121,23 @@ export default function ForgotPasswordPage() {
     setSubmitError('')
 
     try {
-      await handleResetPassword({
+      const result = await handleResetPassword({
         token,
         password: values.password,
         confirmPassword: values.confirmPassword,
       })
+      const message = resolveMessage(result?.data, 'Password updated successfully. Please log in with your new password.')
 
-      setResetSuccess(true)
+      resetForm.reset()
+      navigate('/login', {
+        replace: true,
+        state: {
+          authNotice: {
+            type: 'success',
+            message,
+          },
+        },
+      })
     } catch (error) {
       setSubmitError(error?.response?.data?.message ?? 'Unable to update your password right now.')
     }
@@ -221,10 +241,20 @@ export default function ForgotPasswordPage() {
                     <p className="mt-1 text-sm text-slate-600">{emailSentTo}</p>
                   </div>
 
+                  {requestNotice ? (
+                    <div className="mt-4 rounded-[18px] bg-emerald-50 px-4 py-3 text-left text-sm font-medium text-emerald-600">
+                      {requestNotice}
+                    </div>
+                  ) : null}
+
                   <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
                     <Button
                       type="button"
-                      onClick={() => setView('request')}
+                      onClick={() => {
+                        setSubmitError('')
+                        setRequestNotice('')
+                        setView('request')
+                      }}
                       variant="ghost"
                       className="rounded-[18px] text-slate-600 hover:bg-slate-100"
                     >
@@ -239,100 +269,79 @@ export default function ForgotPasswordPage() {
 
               {view === 'reset' ? (
                 <motion.div key="reset" {...panelMotion}>
-                  {!resetSuccess ? (
-                    <Form {...resetForm}>
-                      <form
-                        onSubmit={resetForm.handleSubmit(onResetPassword)}
-                        className="space-y-5"
-                      >
-                        <FormField
-                          control={resetForm.control}
-                          name="password"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>New password</FormLabel>
-                              <FormControl>
-                                <div className="relative">
-                                  <Lock className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-                                  <Input
-                                    {...field}
-                                    type="password"
-                                    placeholder="Create a new password"
-                                    className="h-14 rounded-[20px] border-none bg-slate-50 pl-14 pr-5 text-sm text-slate-700 shadow-none focus-visible:ring-2 focus-visible:ring-[#5051F9]"
-                                  />
-                                </div>
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                  <Form {...resetForm}>
+                    <form
+                      onSubmit={resetForm.handleSubmit(onResetPassword)}
+                      className="space-y-5"
+                    >
+                      <FormField
+                        control={resetForm.control}
+                        name="password"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>New password</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <Lock className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                                <Input
+                                  {...field}
+                                  type="password"
+                                  placeholder="Create a new password"
+                                  className="h-14 rounded-[20px] border-none bg-slate-50 pl-14 pr-5 text-sm text-slate-700 shadow-none focus-visible:ring-2 focus-visible:ring-[#5051F9]"
+                                />
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                        <FormField
-                          control={resetForm.control}
-                          name="confirmPassword"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Confirm password</FormLabel>
-                              <FormControl>
-                                <div className="relative">
-                                  <Lock className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-                                  <Input
-                                    {...field}
-                                    type="password"
-                                    placeholder="Confirm your new password"
-                                    className="h-14 rounded-[20px] border-none bg-slate-50 pl-14 pr-5 text-sm text-slate-700 shadow-none focus-visible:ring-2 focus-visible:ring-[#5051F9]"
-                                  />
-                                </div>
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                      <FormField
+                        control={resetForm.control}
+                        name="confirmPassword"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Confirm password</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <Lock className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                                <Input
+                                  {...field}
+                                  type="password"
+                                  placeholder="Confirm your new password"
+                                  className="h-14 rounded-[20px] border-none bg-slate-50 pl-14 pr-5 text-sm text-slate-700 shadow-none focus-visible:ring-2 focus-visible:ring-[#5051F9]"
+                                />
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                        {!token ? (
-                          <div className="rounded-[18px] bg-amber-50 px-4 py-3 text-sm font-medium text-amber-600">
-                            Missing or invalid reset token. Please request a new magic link.
-                          </div>
-                        ) : null}
+                      {!token ? (
+                        <div className="rounded-[18px] bg-amber-50 px-4 py-3 text-sm font-medium text-amber-600">
+                          Missing or invalid reset token. Please request a new magic link.
+                        </div>
+                      ) : null}
 
-                        {submitError ? (
-                          <div className="rounded-[18px] bg-rose-50 px-4 py-3 text-sm font-medium text-rose-500">
-                            {submitError}
-                          </div>
-                        ) : null}
+                      {submitError ? (
+                        <div className="rounded-[18px] bg-rose-50 px-4 py-3 text-sm font-medium text-rose-500">
+                          {submitError}
+                        </div>
+                      ) : null}
 
-                        <motion.div whileHover={{ scale: 1.02, y: -2 }}>
-                          <Button
-                            type="submit"
-                            disabled={!token || resetForm.formState.isSubmitting}
-                            className="h-14 w-full rounded-[20px] bg-[#5051F9] text-base font-semibold text-white shadow-lg shadow-indigo-200/70 hover:bg-[#4344dd]"
-                          >
-                            Update Password
-                            <ArrowRight className="h-4 w-4" />
-                          </Button>
-                        </motion.div>
-                      </form>
-                    </Form>
-                  ) : (
-                    <div className="text-center">
-                      <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-[28px] bg-emerald-50 text-emerald-500">
-                        <CheckCircle2 className="h-11 w-11" />
-                      </div>
-                      <p className="mt-6 text-sm leading-7 text-slate-600">
-                        Your password is ready. Continue to the workspace and log in with your new credentials.
-                      </p>
-                      <div className="mt-6 flex justify-center">
+                      <motion.div whileHover={{ scale: 1.02, y: -2 }}>
                         <Button
-                          type="button"
-                          onClick={() => navigate('/dashboard')}
-                          className="h-14 rounded-[20px] bg-[#5051F9] px-6 text-base font-semibold text-white shadow-lg shadow-indigo-200/70 hover:bg-[#4344dd]"
+                          type="submit"
+                          disabled={!token || resetForm.formState.isSubmitting}
+                          className="h-14 w-full rounded-[20px] bg-[#5051F9] text-base font-semibold text-white shadow-lg shadow-indigo-200/70 hover:bg-[#4344dd]"
                         >
-                          Go to Dashboard
+                          Update Password
                           <ArrowRight className="h-4 w-4" />
                         </Button>
-                      </div>
-                    </div>
-                  )}
+                      </motion.div>
+                    </form>
+                  </Form>
                 </motion.div>
               ) : null}
             </AnimatePresence>

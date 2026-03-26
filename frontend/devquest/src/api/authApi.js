@@ -11,6 +11,15 @@ const authApi = {
     return axiosClient.post(url, data);
   },
 
+  verifyEmail(token) {
+    const url = '/auth/verify';
+    return axiosClient.get(url, {
+      params: {
+        token,
+      },
+    });
+  },
+
   forgotPassword(data) {
     const url = '/auth/forgot-password';
     return axiosClient.post(url, data);

@@ -1,43 +1,21 @@
-import axios from 'axios'
+import authApi from '@/api/authApi'
 
 export function usePasswordRecoveryActions() {
   const handleSendMagicLink = async (values) => {
-    try {
-      const response = await axios.post('/api/auth/forgot-password', values)
+    const data = await authApi.forgotPassword(values)
 
-      return {
-        success: true,
-        data: response.data,
-      }
-    } catch (error) {
-      if (import.meta.env.DEV) {
-        return {
-          success: true,
-          mocked: true,
-        }
-      }
-
-      throw error
+    return {
+      success: true,
+      data,
     }
   }
 
   const handleResetPassword = async (values) => {
-    try {
-      const response = await axios.post('/api/auth/reset-password', values)
+    const data = await authApi.resetPassword(values)
 
-      return {
-        success: true,
-        data: response.data,
-      }
-    } catch (error) {
-      if (import.meta.env.DEV) {
-        return {
-          success: true,
-          mocked: true,
-        }
-      }
-
-      throw error
+    return {
+      success: true,
+      data,
     }
   }
 

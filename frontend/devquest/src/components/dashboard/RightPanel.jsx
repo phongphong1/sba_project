@@ -135,7 +135,7 @@ function QuickAddTask({ team, draftTask, onDraftChange, onSubmit }) {
             </label>
             <Select
               value={String(draftTask.assigneeId)}
-              onValueChange={(value) => onDraftChange('assigneeId', Number(value))}
+              onValueChange={(value) => onDraftChange('assigneeId', value)}
             >
               <SelectTrigger
                 id="taskAssignee"

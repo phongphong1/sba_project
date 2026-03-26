@@ -27,21 +27,23 @@ import {
 const priorityOptions = ['ALL', 'HIGH', 'MEDIUM', 'LOW']
 
 export default function BoardHeader({
+  workspaceName,
   boardTitle,
-  activeProjectId,
-  projects,
-  onlineMembers,
+  boardDescription,
+  activeBoardId,
+  boards,
+  workspaceMembers,
   searchQuery,
   onSearchChange,
   activePriority,
   onPriorityChange,
   onAddColumn,
-  onProjectSelect,
+  onBoardSelect,
   columnCount,
   taskCount,
 }) {
   const [activeDrawer, setActiveDrawer] = useState(null)
-  const isProjectDrawerOpen = activeDrawer === 'project'
+  const isBoardDrawerOpen = activeDrawer === 'board'
   const isMembersDrawerOpen = activeDrawer === 'members'
 
   return (
@@ -49,10 +51,10 @@ export default function BoardHeader({
       <Card className={`space-y-5 ${octomCardClass}`}>
         <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
           <div>
-            <p className="text-sm font-medium text-slate-400">Kanban board</p>
+            <p className="text-sm font-medium text-slate-400">{workspaceName}</p>
             <h2 className="mt-1 text-3xl font-semibold tracking-tight text-slate-900">{boardTitle}</h2>
             <p className="mt-2 text-sm text-slate-500">
-              Drag tasks across columns and keep discovery work moving clearly.
+              {boardDescription}
             </p>
           </div>
 
@@ -61,10 +63,10 @@ export default function BoardHeader({
             type="button"
             variant="secondary"
             className={`h-12 ${octomSecondaryButtonClass}`}
-            onClick={() => setActiveDrawer('project')}
+            onClick={() => setActiveDrawer('board')}
           >
             <FolderKanban className="h-4 w-4" />
-            Project
+            Switch board
           </Button>
 
           <Button
@@ -74,7 +76,7 @@ export default function BoardHeader({
             onClick={() => setActiveDrawer('members')}
           >
             <Users className="h-4 w-4" />
-            {onlineMembers.length} members
+            {workspaceMembers.length} members
           </Button>
 
           <Button
@@ -132,13 +134,13 @@ export default function BoardHeader({
         </div>
       </Card>
 
-      <Drawer open={isProjectDrawerOpen} onOpenChange={(open) => !open && setActiveDrawer(null)} direction="right">
+      <Drawer open={isBoardDrawerOpen} onOpenChange={(open) => !open && setActiveDrawer(null)} direction="right">
         <DrawerContent className={`${octomDrawerContentClass} data-[vaul-drawer-direction=right]:sm:max-w-xl`}>
-          {isProjectDrawerOpen ? (
+          {isBoardDrawerOpen ? (
             <div className="flex h-full flex-col gap-6 overflow-y-auto">
               <DrawerHeader className="px-0">
-                <DrawerTitle>Switch project</DrawerTitle>
-                <DrawerDescription>Select another project board to work on.</DrawerDescription>
+                <DrawerTitle>Switch board</DrawerTitle>
+                <DrawerDescription>Select another board inside this workspace.</DrawerDescription>
               </DrawerHeader>
 
               <Card className={`border-0 ${octomMutedPanelClass}`}>
@@ -152,24 +154,24 @@ export default function BoardHeader({
                     <p className="mt-2 text-2xl font-semibold text-slate-900">{taskCount}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-slate-400">Members</p>
+                    <p className="text-sm text-slate-400">Workspace members</p>
                     <p className="mt-2 text-2xl font-semibold text-slate-900">
-                      {onlineMembers.length}
+                      {workspaceMembers.length}
                     </p>
                   </div>
                 </div>
               </Card>
 
               <div className="space-y-3">
-                {projects.map((project) => {
-                  const isActive = project.id === activeProjectId
+                {boards.map((board) => {
+                  const isActive = board.id === activeBoardId
 
                   return (
                     <button
-                      key={project.id}
+                      key={board.id}
                       type="button"
                       onClick={() => {
-                        onProjectSelect(project.id)
+                        onBoardSelect(board.id)
                         setActiveDrawer(null)
                       }}
                       className={`w-full rounded-[20px] border px-5 py-4 text-left transition ${
@@ -180,12 +182,12 @@ export default function BoardHeader({
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="text-sm font-semibold text-slate-900">{project.title}</p>
+                          <p className="text-sm font-semibold text-slate-900">{board.name}</p>
                           <p className="mt-2 text-sm leading-6 text-slate-500">
-                            {project.description}
+                            {board.description}
                           </p>
                           <p className="mt-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
-                            {project.status}
+                            {board.taskCount} tasks • {board.columnCount} columns
                           </p>
                         </div>
                         <div
@@ -210,14 +212,14 @@ export default function BoardHeader({
           {isMembersDrawerOpen ? (
             <div className="flex h-full flex-col gap-6 overflow-y-auto">
               <DrawerHeader className="px-0">
-                <DrawerTitle>Team members</DrawerTitle>
-                <DrawerDescription>People currently contributing to this board.</DrawerDescription>
+                <DrawerTitle>Workspace members</DrawerTitle>
+                <DrawerDescription>People available across boards in this workspace.</DrawerDescription>
               </DrawerHeader>
 
               <div className="flex items-center justify-between gap-3 rounded-[20px] bg-white p-4 ring-1 ring-slate-200/70">
                 <div>
-                  <p className="text-sm font-semibold text-slate-900">{onlineMembers.length} members</p>
-                  <p className="mt-1 text-sm text-slate-500">Manage collaborators for this board.</p>
+                  <p className="text-sm font-semibold text-slate-900">{workspaceMembers.length} members</p>
+                  <p className="mt-1 text-sm text-slate-500">Keep ownership visible across all boards.</p>
                 </div>
                 <Button type="button" className={`h-11 ${octomPrimaryButtonClass}`}>
                   <UserPlus className="h-4 w-4" />
@@ -226,7 +228,7 @@ export default function BoardHeader({
               </div>
 
               <div className="space-y-3">
-                {onlineMembers.map((member) => (
+                {workspaceMembers.map((member) => (
                   <Card
                     key={member.id}
                     className="rounded-[20px] border-0 bg-white px-4 py-4 shadow-sm ring-1 ring-slate-200/70"
@@ -245,7 +247,7 @@ export default function BoardHeader({
                       </Avatar>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold text-slate-900">
-                          {member.name}
+                          {member.fullName}
                         </p>
                         <p className="text-sm text-slate-500">{member.role}</p>
                       </div>

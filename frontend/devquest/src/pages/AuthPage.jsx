@@ -44,6 +44,24 @@ const floatingCards = [
   { id: 'collab', title: 'Team sync', detail: '4 teammates active in workspace', color: '#F97316', x: 8, y: 132 },
 ]
 
+const resolveAuthNotice = (state) => {
+  if (state?.authNotice?.message) {
+    return state.authNotice
+  }
+
+  if (state?.signupSuccess) {
+    return {
+      type: 'success',
+      message: state.signupSuccess,
+    }
+  }
+
+  return null
+}
+
+const resolveMessage = (payload, fallbackMessage) =>
+  payload?.message ?? payload?.data?.message ?? fallbackMessage
+
 function SocialButton({ children }) {
   return (
     <Button
@@ -324,11 +342,13 @@ export default function AuthPage() {
   const navigate = useNavigate()
   const isSignUp = location.pathname === '/signup'
   const mode = isSignUp ? 'signup' : 'login'
-  const [signupSuccess, setSignupSuccess] = useState(location.state?.signupSuccess ?? '')
+  const [authNotice, setAuthNotice] = useState(resolveAuthNotice(location.state))
 
   useEffect(() => {
-    if (location.state?.signupSuccess) {
-      setSignupSuccess(location.state.signupSuccess)
+    const nextAuthNotice = resolveAuthNotice(location.state)
+
+    if (nextAuthNotice) {
+      setAuthNotice(nextAuthNotice)
       navigate(location.pathname, { replace: true, state: {} })
     }
   }, [location.pathname, location.state, navigate])
@@ -339,16 +359,19 @@ export default function AuthPage() {
 
   const handleAuthSuccess = ({ mode: authMode, values, result }) => {
     if (authMode === 'signup') {
-      const message = result?.data?.message ?? `We've sent a confirmation email to ${values.email}.`
+      const message = resolveMessage(result?.data, `We've sent a confirmation email to ${values.email}.`)
       navigate('/login', {
         state: {
-          signupSuccess: message,
+          authNotice: {
+            type: 'success',
+            message,
+          },
         },
       })
       return
     }
 
-    setSignupSuccess('')
+    setAuthNotice(null)
     navigate('/dashboard')
   }
 
@@ -391,9 +414,15 @@ export default function AuthPage() {
                     </p>
                   </div>
 
-                  {!isSignUp && signupSuccess ? (
-                    <div className="mt-5 rounded-[18px] bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-600">
-                      {signupSuccess}
+                  {!isSignUp && authNotice?.message ? (
+                    <div
+                      className={`mt-5 rounded-[18px] px-4 py-3 text-sm font-medium ${
+                        authNotice.type === 'error'
+                          ? 'bg-rose-50 text-rose-500'
+                          : 'bg-emerald-50 text-emerald-600'
+                      }`}
+                    >
+                      {authNotice.message}
                     </div>
                   ) : null}
 

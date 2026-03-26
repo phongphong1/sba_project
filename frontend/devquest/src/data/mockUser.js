@@ -6,14 +6,12 @@ export const MOCK_USER_DATA = {
     avatarUrl: '',
     systemRole: 'ROLE_USER',
     bio: 'Coding is my life.',
+    emailNotifications: true,
   },
   stats: {
     workspacesCount: 5,
     tasksCompleted: 42,
     totalComments: 128,
     activeSince: 'Jan 2024',
-  },
-  preferences: {
-    emailNotifications: true,
   },
 }
