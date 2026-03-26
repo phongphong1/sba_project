@@ -114,7 +114,7 @@ export default function ForgotPasswordPage() {
       await handleResetPassword({
         token,
         password: values.password,
-        confirm_password: values.confirmPassword,
+        confirmPassword: values.confirmPassword,
       })
 
       setResetSuccess(true)

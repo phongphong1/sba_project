@@ -1,10 +1,10 @@
 export const MOCK_USER_DATA = {
   user: {
     id: 1,
-    username: 'phong_bro',
+    fullName: 'Phong Bro',
     email: 'phong@devquest.com',
-    avatar_url: '',
-    system_role: 'ROLE_USER',
+    avatarUrl: '',
+    systemRole: 'ROLE_USER',
     bio: 'Coding is my life.',
   },
   stats: {

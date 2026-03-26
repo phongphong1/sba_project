@@ -46,7 +46,7 @@ function ScheduleList({ items }) {
               </span>
             </div>
             <p className="mt-4 text-sm text-slate-500">
-              {item.start_time} - {item.end_time}
+              {item.startTime} - {item.endTime}
             </p>
             <p className="mt-1 text-sm text-slate-400">{item.location}</p>
           </div>
@@ -91,7 +91,7 @@ function MessagesList({ messages }) {
                 {message.unread ? <span className="h-2.5 w-2.5 rounded-full bg-[#5051F9]" /> : null}
               </div>
               <p className="mt-2 text-sm leading-6 text-slate-500">{message.content}</p>
-              <p className="mt-3 text-xs font-medium text-slate-400">{message.created_at}</p>
+              <p className="mt-3 text-xs font-medium text-slate-400">{message.createdAt}</p>
             </div>
           </div>
         ))}

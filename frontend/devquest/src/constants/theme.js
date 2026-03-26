@@ -3,7 +3,7 @@ export const SUCCESS_COLOR = '#10B981'
 
 export const statusClassMap = {
   todo: 'bg-slate-100 text-slate-600',
-  in_progress: 'bg-indigo-100 text-indigo-700',
+  inProgress: 'bg-indigo-100 text-indigo-700',
   review: 'bg-amber-100 text-amber-700',
   done: 'bg-emerald-100 text-emerald-700',
 }

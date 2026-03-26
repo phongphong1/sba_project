@@ -49,7 +49,7 @@ function getRoleLabel(systemRole) {
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState('general')
   const [profileForm, setProfileForm] = useState({
-    username: MOCK_USER_DATA.user.username,
+    fullName: MOCK_USER_DATA.user.fullName,
     email: MOCK_USER_DATA.user.email,
     bio: MOCK_USER_DATA.user.bio,
   })
@@ -61,7 +61,7 @@ export default function ProfilePage() {
   const [preferences, setPreferences] = useState(MOCK_USER_DATA.preferences)
 
   const roleLabel = useMemo(
-    () => getRoleLabel(MOCK_USER_DATA.user.system_role),
+    () => getRoleLabel(MOCK_USER_DATA.user.systemRole),
     [],
   )
 
@@ -88,7 +88,7 @@ export default function ProfilePage() {
 
   const handleUpdateProfile = async () => {
     const payload = {
-      username: profileForm.username,
+      fullName: profileForm.fullName,
       email: profileForm.email,
       bio: profileForm.bio,
       preferences,
@@ -100,9 +100,9 @@ export default function ProfilePage() {
 
   const handleChangePassword = async () => {
     const payload = {
-      current_password: passwordForm.currentPassword,
-      new_password: passwordForm.newPassword,
-      confirm_password: passwordForm.confirmPassword,
+      currentPassword: passwordForm.currentPassword,
+      newPassword: passwordForm.newPassword,
+      confirmPassword: passwordForm.confirmPassword,
     }
 
     void payload
@@ -123,7 +123,7 @@ export default function ProfilePage() {
                   className={`${octomAvatarFallbackClass} text-xl`}
                   style={{ backgroundColor: '#E0E7FF' }}
                 >
-                  {MOCK_USER_DATA.user.username.slice(0, 2).toUpperCase()}
+                  {MOCK_USER_DATA.user.fullName.slice(0, 2).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
 
@@ -139,7 +139,7 @@ export default function ProfilePage() {
             </div>
 
             <h1 className="mt-5 text-3xl font-semibold tracking-tight text-slate-900">
-              {profileForm.username}
+              {profileForm.fullName}
             </h1>
             <p className="mt-2 text-sm text-slate-500">{profileForm.email}</p>
             <Badge className="mt-3 rounded-full bg-indigo-100 px-3 py-1 text-indigo-600">
@@ -222,10 +222,10 @@ export default function ProfilePage() {
 
             <div className="grid gap-5 md:grid-cols-2">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-500">Username</label>
+                <label className="text-sm font-medium text-slate-500">Full name</label>
                 <Input
-                  value={profileForm.username}
-                  onChange={(event) => handleProfileFieldChange('username', event.target.value)}
+                  value={profileForm.fullName}
+                  onChange={(event) => handleProfileFieldChange('fullName', event.target.value)}
                   className={octomInputClass}
                 />
               </div>

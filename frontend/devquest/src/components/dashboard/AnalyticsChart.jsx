@@ -63,14 +63,14 @@ export default function AnalyticsChart({ data }) {
             />
             <Area
               type="monotone"
-              dataKey="completed_tasks"
+              dataKey="completedTasks"
               stroke={PRIMARY_COLOR}
               strokeWidth={4}
               fill="url(#taskDoneGradient)"
             />
             <Area
               type="monotone"
-              dataKey="goal_tasks"
+              dataKey="goalTasks"
               stroke="#CBD5E1"
               strokeWidth={2}
               fill="transparent"

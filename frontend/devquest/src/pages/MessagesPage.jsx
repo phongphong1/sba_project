@@ -113,7 +113,7 @@ export default function MessagesPage() {
           ? {
               ...conversation,
               lastMessage: incomingMessage.content,
-              updatedAt: incomingMessage.created_at,
+              updatedAt: incomingMessage.createdAt,
               unreadCount:
                 incomingMessage.conversationId === activeConversationId
                   ? conversation.unreadCount
@@ -172,7 +172,7 @@ export default function MessagesPage() {
       senderName: 'Phong Nguyen',
       content: trimmedMessage,
       type: 'TEXT',
-      created_at: 'Now',
+      createdAt: 'Now',
       isMine: true,
     }
 
@@ -349,7 +349,7 @@ export default function MessagesPage() {
                         ) : null}
                         <p className="text-sm leading-7">{message.content}</p>
                         <p className={`mt-2 text-right text-[11px] ${message.isMine ? 'text-white/70' : 'text-slate-400'}`}>
-                          {message.created_at}
+                          {message.createdAt}
                         </p>
                       </Card>
                     </motion.div>

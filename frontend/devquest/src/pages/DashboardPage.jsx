@@ -44,7 +44,7 @@ export default function DashboardPage() {
     setDashboardData((currentData) => ({
       ...currentData,
       tasks: currentData.tasks.map((task) =>
-        task.id === taskId ? { ...task, reminder_enabled: !task.reminder_enabled } : task,
+        task.id === taskId ? { ...task, reminderEnabled: !task.reminderEnabled } : task,
       ),
     }))
   }
@@ -70,15 +70,15 @@ export default function DashboardPage() {
         tasks: [
           {
             id: Date.now(),
-            project_id: currentData.workspace.id,
+            projectId: currentData.workspace.id,
             position: currentData.tasks.length + 1,
             title: draftTask.title.trim(),
             status: 'todo',
             priority: 'Medium',
             sprint: 'Backlog',
             progress: 18,
-            due_date: draftTask.dueDate.trim() || 'Tomorrow, 02:00 PM',
-            reminder_enabled: false,
+            dueDate: draftTask.dueDate.trim() || 'Tomorrow, 02:00 PM',
+            reminderEnabled: false,
             assignee: {
               id: assignee.id,
               name: assignee.name,
@@ -93,7 +93,7 @@ export default function DashboardPage() {
                 color: assignee.color,
               },
             ],
-            estimate_hours: 6,
+            estimateHours: 6,
           },
           ...currentData.tasks,
         ],

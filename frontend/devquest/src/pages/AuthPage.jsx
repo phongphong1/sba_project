@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowRight, Github, Lock, Mail, Sparkles, User } from 'lucide-react'
@@ -28,7 +28,7 @@ const loginSchema = z.object({
 
 const signUpSchema = z
   .object({
-    username: z.string().min(3, 'Username must be at least 3 characters.'),
+    fullName: z.string().min(3, 'Full name must be at least 3 characters.'),
     email: z.email('Please enter a valid email address.'),
     password: z.string().min(8, 'Password must be at least 8 characters.'),
     confirmPassword: z.string().min(8, 'Please confirm your password.'),
@@ -108,7 +108,7 @@ function AuthForm({ mode, onSwitch, onSuccess }) {
   const form = useForm({
     resolver: zodResolver(isSignUp ? signUpSchema : loginSchema),
     defaultValues: isSignUp
-      ? { username: '', email: '', password: '', confirmPassword: '' }
+      ? { fullName: '', email: '', password: '', confirmPassword: '' }
       : { email: '', password: '' },
     mode: 'onChange',
   })
@@ -122,12 +122,12 @@ function AuthForm({ mode, onSwitch, onSuccess }) {
 
     try {
       if (isSignUp) {
-        await handleSignUp(values)
+        const result = await handleSignUp(values)
+        onSuccess({ mode: 'signup', values, result })
       } else {
-        await handleLogin(values)
+        const result = await handleLogin(values)
+        onSuccess({ mode: 'login', values, result })
       }
-
-      onSuccess()
     } catch (error) {
       setSubmitError(error?.response?.data?.message ?? 'Something went wrong. Please try again.')
       setShakeKey((current) => current + 1)
@@ -161,16 +161,16 @@ function AuthForm({ mode, onSwitch, onSuccess }) {
             {isSignUp ? (
               <FormField
                 control={form.control}
-                name="username"
+                name="fullName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Username</FormLabel>
+                    <FormLabel>Full name</FormLabel>
                     <FormControl>
                       <div className="relative">
                         <User className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
                         <Input
                           {...field}
-                          placeholder="Enter your username"
+                          placeholder="Enter your full name"
                           className="h-14 rounded-[20px] border-none bg-slate-50 pl-14 pr-5 text-sm text-slate-700 shadow-none focus-visible:ring-2 focus-visible:ring-[#5051F9]"
                         />
                       </div>
@@ -324,12 +324,31 @@ export default function AuthPage() {
   const navigate = useNavigate()
   const isSignUp = location.pathname === '/signup'
   const mode = isSignUp ? 'signup' : 'login'
+  const [signupSuccess, setSignupSuccess] = useState(location.state?.signupSuccess ?? '')
+
+  useEffect(() => {
+    if (location.state?.signupSuccess) {
+      setSignupSuccess(location.state.signupSuccess)
+      navigate(location.pathname, { replace: true, state: {} })
+    }
+  }, [location.pathname, location.state, navigate])
 
   const handleSwitchMode = () => {
     navigate(isSignUp ? '/login' : '/signup')
   }
 
-  const handleAuthSuccess = () => {
+  const handleAuthSuccess = ({ mode: authMode, values, result }) => {
+    if (authMode === 'signup') {
+      const message = result?.data?.message ?? `We've sent a confirmation email to ${values.email}.`
+      navigate('/login', {
+        state: {
+          signupSuccess: message,
+        },
+      })
+      return
+    }
+
+    setSignupSuccess('')
     navigate('/dashboard')
   }
 
@@ -371,6 +390,12 @@ export default function AuthPage() {
                         : 'Sign in to continue working across tasks, roadmap, and collaboration flows.'}
                     </p>
                   </div>
+
+                  {!isSignUp && signupSuccess ? (
+                    <div className="mt-5 rounded-[18px] bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-600">
+                      {signupSuccess}
+                    </div>
+                  ) : null}
 
                   <div className="mt-8">
                     <AuthForm mode={mode} onSwitch={handleSwitchMode} onSuccess={handleAuthSuccess} />

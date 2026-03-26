@@ -1,76 +1,33 @@
-import axios from 'axios'
+import authApi from '@/api/authApi'
+import { AUTH_TOKEN_KEY } from '@/constants/auth'
 
-const AUTH_TOKEN_KEY = 'devquest.jwt'
+const persistToken = (token) => localStorage.setItem(AUTH_TOKEN_KEY, token)
 
-function persistToken(token) {
-  localStorage.setItem(AUTH_TOKEN_KEY, token)
-}
+const resolveToken = (payload) => payload?.token ?? payload?.jwt ?? payload?.accessToken
 
 export function useAuthActions() {
-  const handleLogin = async (values) => {
-    try {
-      const response = await axios.post('/api/auth/login', values)
-      const token =
-        response.data?.token ??
-        response.data?.jwt ??
-        response.data?.accessToken ??
-        `mock-jwt-${Date.now()}`
-
-      persistToken(token)
-
-      return {
-        success: true,
-        token,
-      }
-    } catch (error) {
-      if (import.meta.env.DEV) {
-        const token = `mock-jwt-${Date.now()}`
-        persistToken(token)
-
-        return {
-          success: true,
-          token,
-          mocked: true,
-        }
-      }
-
-      throw error
-    }
-  }
-
-  const handleSignUp = async (values) => {
-    try {
-      const response = await axios.post('/api/auth/register', values)
-      const token =
-        response.data?.token ??
-        response.data?.jwt ??
-        response.data?.accessToken ??
-        `mock-jwt-${Date.now()}`
-
-      persistToken(token)
-
-      return {
-        success: true,
-        token,
-      }
-    } catch (error) {
-      if (import.meta.env.DEV) {
-        const token = `mock-jwt-${Date.now()}`
-        persistToken(token)
-
-        return {
-          success: true,
-          token,
-          mocked: true,
-        }
-      }
-
-      throw error
-    }
-  }
-
   return {
-    handleLogin,
-    handleSignUp,
+    handleLogin: async (values) => {
+      const data = await authApi.login(values)
+      const token = resolveToken(data)
+
+      if (token) {
+        persistToken(token)
+      }
+
+      return {
+        success: true,
+        token,
+        data,
+      }
+    },
+    handleSignUp: async (values) => {
+      const data = await authApi.register(values)
+
+      return {
+        success: true,
+        data,
+      }
+    },
   }
 }

@@ -15,6 +15,8 @@ import {
 } from '@/constants/uiStyles'
 
 function TaskItem({ task, onToggleReminder }) {
+  const statusLabel = task.status.replace(/([A-Z])/g, ' $1').toLowerCase()
+
   return (
     <Card className={octomLiftCardClass}>
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
@@ -23,7 +25,7 @@ function TaskItem({ task, onToggleReminder }) {
             <Badge
               className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${statusClassMap[task.status]}`}
             >
-              {task.status.replace('_', ' ')}
+              {statusLabel}
             </Badge>
             <Badge variant="outline" className={`${octomGhostBadgeClass} ${priorityClassMap[task.priority]}`}>
               {task.priority} priority
@@ -34,7 +36,7 @@ function TaskItem({ task, onToggleReminder }) {
           <h3 className="mt-3 text-lg font-semibold text-slate-900">{task.title}</h3>
           <p className="mt-2 text-sm text-slate-500">
             Assignee: <span className="font-medium text-slate-700">{task.assignee.name}</span> · Est.
-            {` ${task.estimate_hours} hrs`}
+            {` ${task.estimateHours} hrs`}
           </p>
 
           <div className="mt-5">
@@ -54,7 +56,7 @@ function TaskItem({ task, onToggleReminder }) {
         <div className={`flex min-w-[220px] flex-col gap-4 rounded-[22px] ${octomMutedPanelClass}`}>
           <div className="flex items-center gap-2 text-sm text-slate-500">
             <Clock3 className="h-4 w-4 text-[#5051F9]" />
-            <span>{task.due_date}</span>
+            <span>{task.dueDate}</span>
           </div>
 
           <div className="flex items-center justify-between gap-3">
@@ -79,9 +81,9 @@ function TaskItem({ task, onToggleReminder }) {
             <Button
               type="button"
               onClick={() => onToggleReminder(task.id)}
-              variant={task.reminder_enabled ? 'default' : 'outline'}
+              variant={task.reminderEnabled ? 'default' : 'outline'}
               className={`px-4 text-sm font-semibold ${
-                task.reminder_enabled
+                task.reminderEnabled
                   ? 'bg-[#5051F9] text-white hover:bg-[#4344dd]'
                   : `${octomSecondaryButtonClass} border-slate-200 bg-white text-slate-600 hover:bg-slate-100`
               }`}

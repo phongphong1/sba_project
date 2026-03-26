@@ -75,8 +75,8 @@ function calculateDateOffset(date, boardStartDate, timelineView) {
 
 // Mirrors API-ready bar math so the UI can derive pixel left/width from raw dates.
 function calculateTaskBarMetrics(task, boardStartDate, timelineView) {
-  const startDate = parseISO(task.start_date)
-  const dueDate = parseISO(task.due_date)
+  const startDate = parseISO(task.startDate)
+  const dueDate = parseISO(task.dueDate)
   const left = calculateDateOffset(startDate, boardStartDate, timelineView)
   const endOffset = calculateDateOffset(endOfDay(dueDate), boardStartDate, timelineView)
   const width = Math.max(endOffset - left, timelineViewOptions[timelineView].columnWidth / 3)
@@ -115,8 +115,8 @@ export default function TimelinePage() {
       filteredTasks.map((task) => ({
         id: `timeline-task-${task.id}`,
         name: task.title,
-        startAt: parseISO(task.start_date),
-        endAt: parseISO(task.due_date),
+        startAt: parseISO(task.startDate),
+        endAt: parseISO(task.dueDate),
         status: { color: task.color },
         task,
         metrics: calculateTaskBarMetrics(task, boardStartDate, timelineView),

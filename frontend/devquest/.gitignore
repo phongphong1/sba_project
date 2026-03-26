@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+ENDPOINT_ANALYSIS.md
+
+.env
