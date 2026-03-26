@@ -126,7 +126,7 @@ export function normalizeWorkspaceList(payload) {
 
   // Keep the UI shape stable even when the API omits optional fields.
   return source.map((workspace, index) => ({
-    id: workspace.id ?? `workspace-${index + 1}`,
+    id: String(workspace.id ?? workspace.workspaceId ?? index + 1),
     name: workspace.name ?? 'Untitled workspace',
     description: workspace.description ?? 'No description yet.',
     role: workspace.role ?? (index === 0 ? 'Owner' : 'Member'),

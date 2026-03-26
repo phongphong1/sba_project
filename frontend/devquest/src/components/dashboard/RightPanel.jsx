@@ -1,5 +1,4 @@
-import { CalendarDays, MessageCircleMore, Plus } from 'lucide-react'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { CalendarDays, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -11,8 +10,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
-  octomAvatarBaseClass,
-  octomAvatarFallbackClass,
   octomCardClass,
   octomInputClass,
   octomMutedPanelClass,
@@ -49,50 +46,6 @@ function ScheduleList({ items }) {
               {item.startTime} - {item.endTime}
             </p>
             <p className="mt-1 text-sm text-slate-400">{item.location}</p>
-          </div>
-        ))}
-      </div>
-    </Card>
-  )
-}
-
-function MessagesList({ messages }) {
-  return (
-    <Card className={octomCardClass}>
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-slate-400">Messages</p>
-          <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-900">Recent updates</h2>
-        </div>
-        <MessageCircleMore className="h-5 w-5 text-[#5051F9]" />
-      </div>
-
-      <div className="mt-6 space-y-4">
-        {messages.map((message) => (
-          <div key={message.id} className={`flex gap-3 ${octomMutedPanelClass}`}>
-            <Avatar
-              className={`${octomAvatarBaseClass} h-11 w-11 shrink-0 rounded-[18px]`}
-              style={{ backgroundColor: message.color }}
-              title={message.sender}
-            >
-              <AvatarFallback
-                className={octomAvatarFallbackClass}
-                style={{ backgroundColor: message.color }}
-              >
-                {message.avatar}
-              </AvatarFallback>
-            </Avatar>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between gap-2">
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">{message.sender}</p>
-                  <p className="text-xs text-slate-400">{message.position}</p>
-                </div>
-                {message.unread ? <span className="h-2.5 w-2.5 rounded-full bg-[#5051F9]" /> : null}
-              </div>
-              <p className="mt-2 text-sm leading-6 text-slate-500">{message.content}</p>
-              <p className="mt-3 text-xs font-medium text-slate-400">{message.createdAt}</p>
-            </div>
           </div>
         ))}
       </div>
@@ -182,7 +135,6 @@ function QuickAddTask({ team, draftTask, onDraftChange, onSubmit }) {
 
 export default function RightPanel({
   schedule,
-  messages,
   team,
   draftTask,
   onDraftChange,
@@ -191,7 +143,6 @@ export default function RightPanel({
   return (
     <aside className="space-y-6 xl:sticky xl:top-8 xl:self-start">
       <ScheduleList items={schedule} />
-      <MessagesList messages={messages} />
       <QuickAddTask
         team={team}
         draftTask={draftTask}

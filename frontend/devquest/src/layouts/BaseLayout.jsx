@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Outlet, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Navigate, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom'
 import HeaderBar from '@/components/dashboard/HeaderBar'
 import Sidebar from '@/components/dashboard/Sidebar'
 import { getPageMeta } from '@/constants/pageMeta'
+import { Card } from '@/components/ui/card'
+import { octomLoadingCardClass } from '@/constants/uiStyles'
 import { useWorkspaceShell } from '@/contexts/WorkspaceShellContext'
 
 export default function BaseLayout() {
@@ -17,7 +19,7 @@ export default function BaseLayout() {
     setPreferredBoard,
     getPreferredBoardId,
     getWorkspace,
-    getHydratedBoard,
+    isLoadingWorkspaces,
   } = useWorkspaceShell()
 
   const currentMeta = useMemo(() => {
@@ -25,10 +27,13 @@ export default function BaseLayout() {
   }, [location.pathname])
 
   const activeWorkspaceId =
-    (routeWorkspaceId && getWorkspace(routeWorkspaceId)?.id) ?? preferredWorkspaceId
+    (routeWorkspaceId && getWorkspace(routeWorkspaceId)?.id) ?? preferredWorkspaceId ?? workspaces[0]?.id ?? null
   const currentWorkspace = activeWorkspaceId ? getWorkspace(activeWorkspaceId) : null
-  const currentBoard =
-    routeWorkspaceId && routeBoardId ? getHydratedBoard(routeWorkspaceId, routeBoardId) : null
+  const hasInvalidWorkspaceRoute =
+    Boolean(routeWorkspaceId) &&
+    !isLoadingWorkspaces &&
+    !getWorkspace(routeWorkspaceId) &&
+    Boolean(activeWorkspaceId)
 
   useEffect(() => {
     if (routeWorkspaceId && getWorkspace(routeWorkspaceId)) {
@@ -76,6 +81,25 @@ export default function BaseLayout() {
     navigate(`/w/${nextWorkspaceId}/dashboard`)
   }
 
+  if (isLoadingWorkspaces && !currentWorkspace && !activeWorkspaceId) {
+    return (
+      <div className="min-h-screen bg-[#F8F9FB] p-4 text-slate-900 md:p-6 xl:p-8">
+        <div className="flex min-h-[320px] items-center justify-center px-6">
+          <Card className={octomLoadingCardClass}>Loading workspace shell...</Card>
+        </div>
+      </div>
+    )
+  }
+
+  if (hasInvalidWorkspaceRoute) {
+    return (
+      <Navigate
+        to={location.pathname.replace(`/w/${routeWorkspaceId}`, `/w/${activeWorkspaceId}`)}
+        replace
+      />
+    )
+  }
+
   return (
     <div className="min-h-screen bg-[#F8F9FB] p-4 text-slate-900 md:p-6 xl:p-8">
       <div className="mx-auto grid max-w-[1700px] gap-6 xl:grid-cols-[104px_minmax(0,1fr)] xl:items-start">
@@ -91,7 +115,7 @@ export default function BaseLayout() {
             showSearch={currentMeta.showSearch}
             workspaces={workspaces}
             activeWorkspaceId={currentWorkspace?.id ?? null}
-            activeBoardName={currentBoard?.name ?? ''}
+            activeBoardName=""
             onWorkspaceSelect={handleWorkspaceSelect}
           />
 
@@ -100,7 +124,7 @@ export default function BaseLayout() {
               searchQuery,
               setSearchQuery,
               currentWorkspace,
-              currentBoard,
+              currentBoard: null,
             }}
           />
         </div>

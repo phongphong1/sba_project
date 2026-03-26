@@ -17,6 +17,8 @@ import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
+import EmptyStatePanel from '@/components/common/EmptyStatePanel'
+import conversationApi from '@/api/conversationApi'
 import {
   octomAvatarBaseClass,
   octomAvatarFallbackClass,
@@ -24,9 +26,12 @@ import {
   octomIconButtonClass,
   octomInlineInputClass,
   octomPrimaryButtonClass,
-  octomSecondaryButtonClass,
 } from '@/constants/uiStyles'
-import { MOCK_CONVERSATIONS, MOCK_MESSAGES } from '@/data/mockMessages'
+import { useUserActions } from '@/hooks/useUserActions'
+import {
+  sendMessageCommand,
+  subscribeToConversationMessages,
+} from '@/lib/realtime/stompClient'
 
 const conversationFilters = [
   { id: 'ALL', label: 'All' },
@@ -39,12 +44,129 @@ const messageTransition = {
   animate: { opacity: 1, scale: 1, y: 0, transition: { duration: 0.22, ease: 'easeOut' } },
   exit: { opacity: 0, scale: 0.94, y: -8, transition: { duration: 0.18, ease: 'easeIn' } },
 }
+const MotionDiv = motion.div
+const MotionSpan = motion.span
+
+function coerceCommandId(value) {
+  const normalizedValue = String(value ?? '').trim()
+
+  if (/^\d+$/.test(normalizedValue)) {
+    return Number(normalizedValue)
+  }
+
+  return value
+}
+
+function formatMessageTimestamp(value) {
+  if (!value) {
+    return 'Now'
+  }
+
+  const timestamp = new Date(value)
+
+  if (Number.isNaN(timestamp.getTime())) {
+    return value
+  }
+
+  return timestamp.toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function resolveSenderName(conversationMembers, senderId) {
+  const resolvedMember = conversationMembers.find(
+    (member) => String(member.id) === String(senderId),
+  )
+
+  if (resolvedMember?.name) {
+    return resolvedMember.name
+  }
+
+  return `User ${senderId}`
+}
+
+function normalizeIncomingMessageEvent(event, conversationId, conversationMembers, currentUser) {
+  if (event?.type !== 'MESSAGE_CREATED' || !event.payload || typeof event.payload !== 'object') {
+    return null
+  }
+
+  const payload = event.payload
+  const senderId = String(payload.senderId ?? '')
+  const resolvedConversationId = String(payload.conversationId ?? conversationId ?? '')
+
+  if (!resolvedConversationId || !payload.content) {
+    return null
+  }
+
+  return {
+    id: String(payload.id ?? event.eventId ?? Date.now()),
+    conversationId: resolvedConversationId,
+    senderId,
+    senderName: resolveSenderName(conversationMembers, senderId),
+    content: payload.content,
+    type: payload.type ?? 'TEXT',
+    createdAt: formatMessageTimestamp(event.timestamp ?? payload.createdAt),
+    isMine:
+      currentUser.id !== null && currentUser.id !== undefined
+        ? String(currentUser.id) === senderId
+        : false,
+  }
+}
+
+function normalizeConversationMember(member, index) {
+  return {
+    id: String(member?.id ?? member?.memberId ?? member?.userId ?? index + 1),
+    name: member?.name ?? member?.fullName ?? 'Unknown member',
+    avatar: member?.avatar ?? member?.initials ?? 'NA',
+    role: member?.role ?? 'Member',
+    color: member?.color ?? '#E2E8F0',
+  }
+}
+
+function normalizeConversation(conversation, index) {
+  return {
+    id: String(conversation?.id ?? conversation?.conversationId ?? index + 1),
+    type: conversation?.type ?? 'DIRECT',
+    title: conversation?.title ?? 'Untitled conversation',
+    lastMessage: conversation?.lastMessage ?? '',
+    updatedAt: conversation?.updatedAt ?? '',
+    unreadCount: Number(conversation?.unreadCount ?? 0),
+    online: Boolean(conversation?.online),
+    avatar: conversation?.avatar ?? conversation?.initials ?? 'NA',
+    color: conversation?.color ?? '#E2E8F0',
+    members: (Array.isArray(conversation?.members) ? conversation.members : []).map(
+      normalizeConversationMember,
+    ),
+    sharedFiles: Array.isArray(conversation?.sharedFiles) ? conversation.sharedFiles : [],
+    sharedLinks: Array.isArray(conversation?.sharedLinks) ? conversation.sharedLinks : [],
+    typingUsers: Array.isArray(conversation?.typingUsers) ? conversation.typingUsers : [],
+  }
+}
+
+function normalizeMessage(message, currentUser, index) {
+  const senderId = String(message?.senderId ?? '')
+
+  return {
+    id: String(message?.id ?? message?.messageId ?? index + 1),
+    conversationId: String(message?.conversationId ?? ''),
+    senderId,
+    senderName: message?.senderName ?? `User ${senderId || index + 1}`,
+    content: message?.content ?? '',
+    type: message?.type ?? 'TEXT',
+    createdAt: formatMessageTimestamp(message?.createdAt),
+    isMine:
+      currentUser.id !== null && currentUser.id !== undefined
+        ? String(currentUser.id) === senderId
+        : Boolean(message?.isMine),
+  }
+}
 
 function TypingIndicator() {
   return (
     <div className="inline-flex items-center gap-1 rounded-[18px] bg-white px-4 py-3 shadow-sm ring-1 ring-slate-200/70">
       {[0, 1, 2].map((dot) => (
-        <motion.span
+        <MotionSpan
           key={dot}
           className="h-2 w-2 rounded-full bg-slate-400"
           animate={{ opacity: [0.3, 1, 0.3], y: [0, -2, 0] }}
@@ -56,12 +178,20 @@ function TypingIndicator() {
 }
 
 export default function MessagesPage() {
+  const { handleGetMe } = useUserActions()
   const [conversationFilter, setConversationFilter] = useState('ALL')
   const [conversationSearch, setConversationSearch] = useState('')
   const [messageInput, setMessageInput] = useState('')
-  const [conversations, setConversations] = useState(MOCK_CONVERSATIONS)
-  const [messagesByConversation, setMessagesByConversation] = useState(MOCK_MESSAGES)
-  const [activeConversationId, setActiveConversationId] = useState(MOCK_CONVERSATIONS[0]?.id ?? null)
+  const [conversations, setConversations] = useState([])
+  const [messagesByConversation, setMessagesByConversation] = useState({})
+  const [activeConversationId, setActiveConversationId] = useState(null)
+  const [currentUser, setCurrentUser] = useState({
+    id: null,
+    fullName: 'You',
+  })
+  const [isSendingMessage, setIsSendingMessage] = useState(false)
+  const [isLoadingConversations, setIsLoadingConversations] = useState(false)
+  const [conversationError, setConversationError] = useState('')
   const messageViewportRef = useRef(null)
 
   const filteredConversations = useMemo(() => {
@@ -96,26 +226,155 @@ export default function MessagesPage() {
     () => (activeConversationId ? messagesByConversation[activeConversationId] ?? [] : []),
     [activeConversationId, messagesByConversation],
   )
+  const activeConversationMembers = useMemo(
+    () => activeConversation?.members ?? [],
+    [activeConversation?.members],
+  )
+
+  useEffect(() => {
+    let isMounted = true
+
+    const loadCurrentUser = async () => {
+      try {
+        const result = await handleGetMe()
+        const resolvedUser =
+          result.data?.user && typeof result.data.user === 'object'
+            ? result.data.user
+            : result.data
+
+        if (!isMounted || !resolvedUser || typeof resolvedUser !== 'object') {
+          return
+        }
+
+        setCurrentUser({
+          id: resolvedUser.id ?? resolvedUser.userId ?? null,
+          fullName: resolvedUser.fullName ?? 'You',
+        })
+      } catch (error) {
+        console.error('Failed to load current user for realtime messages:', error)
+      }
+    }
+
+    void loadCurrentUser()
+
+    return () => {
+      isMounted = false
+    }
+  }, [handleGetMe])
+
+  useEffect(() => {
+    let isMounted = true
+
+    const loadConversations = async () => {
+      setIsLoadingConversations(true)
+      setConversationError('')
+
+      try {
+        const data = await conversationApi.getConversations()
+        const normalizedConversations = (Array.isArray(data) ? data : []).map(normalizeConversation)
+
+        if (!isMounted) {
+          return
+        }
+
+        setConversations(normalizedConversations)
+        setActiveConversationId((currentId) => {
+          if (currentId && normalizedConversations.some((conversation) => conversation.id === currentId)) {
+            return currentId
+          }
+
+          return normalizedConversations[0]?.id ?? null
+        })
+      } catch (error) {
+        if (!isMounted) {
+          return
+        }
+
+        setConversations([])
+        setActiveConversationId(null)
+        setConversationError(
+          error?.response?.data?.message ?? error?.message ?? 'Unable to load conversations.',
+        )
+      } finally {
+        if (isMounted) {
+          setIsLoadingConversations(false)
+        }
+      }
+    }
+
+    void loadConversations()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!activeConversationId || messagesByConversation[activeConversationId]) {
+      return
+    }
+
+    let isMounted = true
+
+    const loadMessages = async () => {
+      try {
+        const data = await conversationApi.getMessages(activeConversationId)
+        const normalizedMessages = (Array.isArray(data) ? data : []).map((message, index) =>
+          normalizeMessage(message, currentUser, index),
+        )
+
+        if (!isMounted) {
+          return
+        }
+
+        setMessagesByConversation((current) => ({
+          ...current,
+          [activeConversationId]: normalizedMessages,
+        }))
+      } catch (error) {
+        if (!isMounted) {
+          return
+        }
+
+        console.error('Failed to load conversation messages:', error)
+        setMessagesByConversation((current) => ({
+          ...current,
+          [activeConversationId]: [],
+        }))
+      }
+    }
+
+    void loadMessages()
+
+    return () => {
+      isMounted = false
+    }
+  }, [activeConversationId, currentUser, messagesByConversation])
 
   const onMessageReceived = useCallback((incomingMessage) => {
     setMessagesByConversation((current) => {
-      const conversationMessages = current[incomingMessage.conversationId] ?? []
+      const conversationId = String(incomingMessage.conversationId)
+      const conversationMessages = current[conversationId] ?? []
+
+      if (conversationMessages.some((message) => String(message.id) === String(incomingMessage.id))) {
+        return current
+      }
 
       return {
         ...current,
-        [incomingMessage.conversationId]: [...conversationMessages, incomingMessage],
+        [conversationId]: [...conversationMessages, incomingMessage],
       }
     })
 
     setConversations((current) =>
       current.map((conversation) =>
-        conversation.id === incomingMessage.conversationId
+        String(conversation.id) === String(incomingMessage.conversationId)
           ? {
               ...conversation,
               lastMessage: incomingMessage.content,
               updatedAt: incomingMessage.createdAt,
               unreadCount:
-                incomingMessage.conversationId === activeConversationId
+                String(incomingMessage.conversationId) === String(activeConversationId)
                   ? conversation.unreadCount
                   : conversation.unreadCount + 1,
             }
@@ -125,20 +384,29 @@ export default function MessagesPage() {
   }, [activeConversationId])
 
   useEffect(() => {
-    if (!activeConversationId) return
-
-    const websocketConfig = {
-      endpoint: '/ws',
-      topic: `/topic/messages/${activeConversationId}`,
+    if (!activeConversationId) {
+      return undefined
     }
 
-    void websocketConfig
-    // TODO: connect STOMP/SockJS here and route every payload into onMessageReceived(incomingMessage)
+    const unsubscribe = subscribeToConversationMessages(activeConversationId, (event) => {
+      const incomingMessage = normalizeIncomingMessageEvent(
+        event,
+        activeConversationId,
+        activeConversationMembers,
+        currentUser,
+      )
+
+      if (!incomingMessage) {
+        return
+      }
+
+      onMessageReceived(incomingMessage)
+    })
 
     return () => {
-      // TODO: disconnect websocket subscription for this conversation
+      unsubscribe()
     }
-  }, [activeConversationId, onMessageReceived])
+  }, [activeConversationId, activeConversationMembers, currentUser, onMessageReceived])
 
   useEffect(() => {
     const viewport =
@@ -160,24 +428,63 @@ export default function MessagesPage() {
     )
   }
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     const trimmedMessage = messageInput.trim()
 
-    if (!trimmedMessage || !activeConversationId) return
+    if (!trimmedMessage || !activeConversationId || isSendingMessage) return
 
-    const outgoingMessage = {
-      id: `msg-${Date.now()}`,
-      conversationId: activeConversationId,
-      senderId: 'user-1',
-      senderName: 'Phong Nguyen',
-      content: trimmedMessage,
-      type: 'TEXT',
-      createdAt: 'Now',
-      isMine: true,
-    }
-
-    onMessageReceived(outgoingMessage)
     setMessageInput('')
+    setIsSendingMessage(true)
+
+    try {
+      const didPublish = await sendMessageCommand({
+        conversationId: coerceCommandId(activeConversationId),
+        content: trimmedMessage,
+      })
+
+      if (!didPublish) {
+        throw new Error('Realtime connection is not available.')
+      }
+    } catch (error) {
+      console.error('Failed to send message:', error)
+      setMessageInput(trimmedMessage)
+    } finally {
+      setIsSendingMessage(false)
+    }
+  }
+
+  if (isLoadingConversations && !conversations.length) {
+    return (
+      <div className="flex min-h-[320px] items-center justify-center px-6">
+        <Card className={octomCardClass}>Loading conversations...</Card>
+      </div>
+    )
+  }
+
+  if (conversationError && !conversations.length) {
+    return (
+      <main className="flex min-h-[420px] items-center">
+        <EmptyStatePanel
+          eyebrow="Conversations"
+          title="Unable to load messages"
+          description={conversationError}
+          primaryActionLabel="Refresh view"
+          onPrimaryAction={() => window.location.reload()}
+        />
+      </main>
+    )
+  }
+
+  if (!conversations.length) {
+    return (
+      <main className="flex min-h-[420px] items-center">
+        <EmptyStatePanel
+          eyebrow="Conversations"
+          title="No conversations available"
+          description="This workspace does not have any conversation data yet, and the page is no longer falling back to mock messages."
+        />
+      </main>
+    )
   }
 
   return (
@@ -321,7 +628,7 @@ export default function MessagesPage() {
 
             <ScrollArea ref={messageViewportRef} className="mt-5 flex-1 pr-2">
               <AnimatePresence mode="popLayout">
-                <motion.div
+                <MotionDiv
                   key={activeConversation.id}
                   initial={{ opacity: 0, x: 18 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -330,7 +637,7 @@ export default function MessagesPage() {
                   className="space-y-4 pb-4"
                 >
                   {activeMessages.map((message) => (
-                    <motion.div
+                    <MotionDiv
                       key={message.id}
                       {...messageTransition}
                       className={`flex ${message.isMine ? 'justify-end' : 'justify-start'}`}
@@ -352,7 +659,7 @@ export default function MessagesPage() {
                           {message.createdAt}
                         </p>
                       </Card>
-                    </motion.div>
+                    </MotionDiv>
                   ))}
 
                   {activeConversation.typingUsers.length ? (
@@ -363,7 +670,7 @@ export default function MessagesPage() {
                       </p>
                     </div>
                   ) : null}
-                </motion.div>
+                </MotionDiv>
               </AnimatePresence>
             </ScrollArea>
 
@@ -382,16 +689,23 @@ export default function MessagesPage() {
                   value={messageInput}
                   onChange={(event) => setMessageInput(event.target.value)}
                   onKeyDown={(event) => {
-                    if (event.key === 'Enter') {
+                    if (event.key === 'Enter' && !isSendingMessage) {
                       event.preventDefault()
-                      handleSendMessage()
+                      void handleSendMessage()
                     }
                   }}
                   placeholder="Type a message..."
                   className={octomInlineInputClass}
                 />
               </label>
-              <Button type="button" onClick={handleSendMessage} className={`h-12 w-12 rounded-[20px] px-0 ${octomPrimaryButtonClass}`}>
+              <Button
+                type="button"
+                disabled={isSendingMessage}
+                onClick={() => {
+                  void handleSendMessage()
+                }}
+                className={`h-12 w-12 rounded-[20px] px-0 ${octomPrimaryButtonClass}`}
+              >
                 <Send className="h-4 w-4" />
               </Button>
             </div>

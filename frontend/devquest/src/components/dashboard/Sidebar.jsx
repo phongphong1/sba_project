@@ -9,10 +9,10 @@ import { octomCardClass, octomSmallIconButtonClass } from '@/constants/uiStyles'
 export default function Sidebar() {
   const location = useLocation()
   const { workspaceId: routeWorkspaceId } = useParams()
-  const { preferredWorkspaceId, getPreferredBoardId, getWorkspace } = useWorkspaceShell()
+  const { preferredWorkspaceId, workspaces, getPreferredBoardId, getWorkspace } = useWorkspaceShell()
 
   const activeWorkspaceId =
-    (routeWorkspaceId && getWorkspace(routeWorkspaceId)?.id) ?? preferredWorkspaceId
+    (routeWorkspaceId && getWorkspace(routeWorkspaceId)?.id) ?? preferredWorkspaceId ?? workspaces[0]?.id ?? null
   const workspaceFallbackPath = '/workspace-empty'
 
   const navItems = useMemo(

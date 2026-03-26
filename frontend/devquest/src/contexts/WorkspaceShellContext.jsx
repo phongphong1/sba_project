@@ -1,135 +1,85 @@
-import { createContext, useContext, useMemo, useState } from 'react'
-import {
-  DEFAULT_BOARD_IDS,
-  DEFAULT_WORKSPACE_ID,
-  MOCK_WORKSPACES,
-  getBoardById,
-  getWorkspaceById,
-} from '@/data/mockWorkspaceGraph'
+/* eslint-disable react-refresh/only-export-components */
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import userApi from '@/api/userApi'
 
 const WorkspaceShellContext = createContext(null)
 
-function hydrateTask(task, membersById) {
-  const assignee = membersById.get(task.assigneeId) ?? null
-  const members = task.memberIds
-    .map((memberId) => membersById.get(memberId))
-    .filter(Boolean)
-
-  return {
-    ...task,
-    assignee: assignee
-      ? {
-          id: assignee.id,
-          name: assignee.fullName,
-          avatar: assignee.avatar,
-          color: assignee.color,
-        }
-      : null,
-    members: members.map((member) => ({
-      id: member.id,
-      name: member.fullName,
-      avatar: member.avatar,
-      color: member.color,
-    })),
-  }
+function resolveEntityId(source, ...keys) {
+  const matchedKey = keys.find((key) => source?.[key] !== undefined && source?.[key] !== null)
+  return matchedKey ? source[matchedKey] : null
 }
 
-function hydrateBoard(workspace, board) {
-  const membersById = new Map(workspace.members.map((member) => [member.id, member]))
-
+function normalizeWorkspace(workspace, index) {
   return {
-    ...board,
-    workspaceId: workspace.id,
-    columns: [...board.columns].sort((a, b) => a.position - b.position),
-    tasks: [...board.tasks]
-      .map((task) => hydrateTask(task, membersById))
-      .sort((a, b) => a.position - b.position),
-  }
-}
-
-function getColumnStatus(columnName) {
-  switch (columnName.toLowerCase()) {
-    case 'to do':
-      return 'todo'
-    case 'in progress':
-      return 'inProgress'
-    case 'review':
-      return 'review'
-    case 'done':
-      return 'done'
-    default:
-      return 'todo'
+    id: String(resolveEntityId(workspace, 'id', 'workspaceId') ?? index + 1),
+    name: workspace?.name ?? 'Untitled workspace',
+    description: workspace?.description ?? 'No description yet.',
+    role: workspace?.role ?? 'Member',
+    boardCount: Number(workspace?.boardCount ?? 0),
+    activeSince: workspace?.activeSince ?? '',
+    boardSummaries: Array.isArray(workspace?.boardSummaries)
+      ? workspace.boardSummaries.map((board, boardIndex) => ({
+          id: String(resolveEntityId(board, 'id', 'boardId') ?? boardIndex + 1),
+          name: board?.name ?? 'Untitled board',
+        }))
+      : [],
   }
 }
 
 export function WorkspaceShellProvider({ children }) {
-  const [preferredWorkspaceId, setPreferredWorkspaceId] = useState(DEFAULT_WORKSPACE_ID)
-  const [preferredBoardIds, setPreferredBoardIds] = useState(DEFAULT_BOARD_IDS)
+  const [workspaces, setWorkspaces] = useState([])
+  const [preferredWorkspaceId, setPreferredWorkspaceId] = useState(null)
+  const [preferredBoardIds, setPreferredBoardIds] = useState({})
+  const [isLoadingWorkspaces, setIsLoadingWorkspaces] = useState(true)
+  const [workspaceLoadError, setWorkspaceLoadError] = useState('')
+
+  const refreshWorkspaces = useCallback(async () => {
+    setIsLoadingWorkspaces(true)
+    setWorkspaceLoadError('')
+
+    try {
+      const data = await userApi.getWorkspaces()
+      const normalizedWorkspaces = (Array.isArray(data) ? data : []).map(normalizeWorkspace)
+
+      setWorkspaces(normalizedWorkspaces)
+      setPreferredWorkspaceId((current) => {
+        if (current && normalizedWorkspaces.some((workspace) => workspace.id === current)) {
+          return current
+        }
+
+        return normalizedWorkspaces[0]?.id ?? null
+      })
+    } catch (error) {
+      setWorkspaces([])
+      setPreferredWorkspaceId(null)
+      setWorkspaceLoadError(
+        error?.response?.data?.message ?? error?.message ?? 'Unable to load workspaces.',
+      )
+    } finally {
+      setIsLoadingWorkspaces(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void refreshWorkspaces()
+  }, [refreshWorkspaces])
 
   const value = useMemo(() => {
-    const workspaces = MOCK_WORKSPACES.map((workspace) => ({
-      ...workspace,
-      boardCount: workspace.boards.length,
-      taskCount: workspace.boards.reduce((total, board) => total + board.tasks.length, 0),
-    }))
-
-    const getWorkspace = (workspaceId) => getWorkspaceById(workspaceId)
-
-    const getHydratedBoard = (workspaceId, boardId) => {
-      const workspace = getWorkspace(workspaceId)
-      const board = getBoardById(workspaceId, boardId)
-
-      if (!workspace || !board) return null
-
-      return hydrateBoard(workspace, board)
-    }
+    const getWorkspace = (workspaceId) =>
+      workspaces.find((workspace) => workspace.id === workspaceId) ?? null
 
     const getPreferredBoardId = (workspaceId) =>
-      preferredBoardIds[workspaceId] ?? getWorkspace(workspaceId)?.boards[0]?.id ?? null
-
-    const getWorkspaceOverview = (workspaceId) => {
-      const workspace = getWorkspace(workspaceId)
-
-      if (!workspace) return null
-
-      const boardSummaries = workspace.boards.map((board) => ({
-        id: board.id,
-        workspaceId: workspace.id,
-        name: board.name,
-        description: board.description,
-        columnCount: board.columns.length,
-        taskCount: board.tasks.length,
-        completedTaskCount: board.tasks.filter((task) => task.columnId === 'col-done').length,
-      }))
-
-      const allHydratedTasks = workspace.boards.flatMap((board) =>
-        hydrateBoard(workspace, board).tasks.map((task) => ({
-          ...task,
-          boardId: board.id,
-          boardName: board.name,
-          status:
-            getColumnStatus(
-              board.columns.find((column) => column.id === task.columnId)?.name ?? 'To Do',
-            ),
-          sprint: board.name,
-        })),
-      )
-
-      return {
-        workspace,
-        members: workspace.members,
-        boardSummaries,
-        tasks: allHydratedTasks,
-        schedule: workspace.schedule,
-        updates: workspace.updates,
-        weeklyOutput: workspace.weeklyOutput,
-      }
-    }
+      preferredBoardIds[workspaceId] ??
+      getWorkspace(workspaceId)?.boardSummaries?.[0]?.id ??
+      null
 
     return {
       workspaces,
       preferredWorkspaceId,
       preferredBoardIds,
+      isLoadingWorkspaces,
+      workspaceLoadError,
+      refreshWorkspaces,
       setPreferredWorkspaceId,
       setPreferredBoard(workspaceId, boardId) {
         if (!boardId) return
@@ -147,10 +97,15 @@ export function WorkspaceShellProvider({ children }) {
       },
       getPreferredBoardId,
       getWorkspace,
-      getHydratedBoard,
-      getWorkspaceOverview,
     }
-  }, [preferredBoardIds, preferredWorkspaceId])
+  }, [
+    isLoadingWorkspaces,
+    preferredBoardIds,
+    preferredWorkspaceId,
+    refreshWorkspaces,
+    workspaceLoadError,
+    workspaces,
+  ])
 
   return <WorkspaceShellContext.Provider value={value}>{children}</WorkspaceShellContext.Provider>
 }

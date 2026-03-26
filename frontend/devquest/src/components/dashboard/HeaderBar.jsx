@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
-import { Bell, ChevronDown, LogOut, Search, User } from 'lucide-react'
+import { Bell, ChevronDown, Loader2, LogOut, Search, User } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import {
@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { useAuthActions } from '@/hooks/useAuthActions'
+import { useHeaderBarData } from '@/hooks/useHeaderBarData'
 import {
   octomAvatarBaseClass,
   octomAvatarFallbackClass,
@@ -36,28 +37,47 @@ export default function HeaderBar({
 }) {
   const navigate = useNavigate()
   const { handleLogout } = useAuthActions()
-  const [notifications, setNotifications] = useState([
-    { id: 1, title: 'Mia left feedback on Timeline view', time: '5m ago', unread: true },
-    { id: 2, title: '3 tasks moved to Review', time: '18m ago', unread: true },
-    { id: 3, title: 'Profile settings updated successfully', time: '1h ago', unread: false },
-  ])
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const {
+    currentUser,
+    workspaceList,
+    notifications,
+    isLoadingNotifications,
+    isMarkingAllNotificationsRead,
+    readingNotificationIds,
+    markAllNotificationsRead,
+    markNotificationRead,
+  } = useHeaderBarData()
+  const effectiveWorkspaces = workspaceList.length ? workspaceList : workspaces
 
   const unreadCount = useMemo(
     () => notifications.filter((notification) => notification.unread).length,
     [notifications],
   )
-  const hasWorkspaces = workspaces.length > 0
+  const hasWorkspaces = effectiveWorkspaces.length > 0
   const activeWorkspace =
-    workspaces.find((workspace) => workspace.id === activeWorkspaceId) ?? null
+    effectiveWorkspaces.find((workspace) => workspace.id === activeWorkspaceId) ?? null
+  const userInitials = useMemo(() => {
+    const source = currentUser.fullName?.trim() || currentUser.email?.trim() || 'Account'
 
-  const handleReadAll = () => {
-    setNotifications((current) =>
-      current.map((notification) => ({
-        ...notification,
-        unread: false,
-      })),
-    )
+    return source
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((part) => part[0] ?? '')
+      .join('')
+      .toUpperCase()
+  }, [currentUser.email, currentUser.fullName])
+
+  const handleReadAll = async () => {
+    if (!notifications.length || !unreadCount) {
+      return
+    }
+
+    try {
+      await markAllNotificationsRead()
+    } catch (error) {
+      console.error('Failed to mark notifications as read:', error)
+    }
   }
 
   const handleLogOut = async () => {
@@ -130,7 +150,7 @@ export default function HeaderBar({
               </DropdownMenuLabel>
               <DropdownMenuSeparator className="bg-slate-200/70" />
               <div className="space-y-1">
-                {hasWorkspaces ? workspaces.map((workspace) => {
+                {hasWorkspaces ? effectiveWorkspaces.map((workspace) => {
                   const isActive = workspace.id === activeWorkspaceId
 
                   return (
@@ -216,37 +236,68 @@ export default function HeaderBar({
             <div className="flex items-center justify-between px-3 py-2">
               <div>
                 <p className="text-sm font-semibold text-slate-900">Notifications</p>
-                <p className="text-xs text-slate-500">{unreadCount} unread</p>
+                <p className="text-xs text-slate-500">
+                  {isLoadingNotifications ? 'Loading...' : `${unreadCount} unread`}
+                </p>
               </div>
               <button
                 type="button"
                 onClick={handleReadAll}
-                className="text-xs font-semibold text-[#5051F9] transition hover:text-[#4344dd]"
+                disabled={!unreadCount || isMarkingAllNotificationsRead}
+                className="text-xs font-semibold text-[#5051F9] transition hover:text-[#4344dd] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Read all
+                {isMarkingAllNotificationsRead ? 'Reading...' : 'Read all'}
               </button>
             </div>
 
             <DropdownMenuSeparator className="bg-slate-200/70" />
 
             <div className="space-y-1">
-              {notifications.map((notification) => (
-                <DropdownMenuItem
-                  key={notification.id}
-                  className="items-start rounded-[14px] px-3 py-3 text-slate-700"
-                >
-                  <div
-                    className={`mt-1 h-2 w-2 shrink-0 rounded-full bg-[#5051F9] ${notification.unread ? 'opacity-100' : 'opacity-0'
-                      }`}
-                  />
-                  <div className="min-w-0">
-                    <p className="line-clamp-2 text-sm font-medium text-slate-900">
-                      {notification.title}
-                    </p>
-                    <p className="mt-1 text-xs text-slate-500">{notification.time}</p>
-                  </div>
+              {notifications.length ? notifications.map((notification) => {
+                const isReading = readingNotificationIds.includes(notification.id)
+
+                return (
+                  <DropdownMenuItem
+                    key={notification.id}
+                    onSelect={(event) => {
+                      if (!notification.unread) {
+                        return
+                      }
+
+                      event.preventDefault()
+                      void markNotificationRead(notification.id)
+                    }}
+                    className={`items-start rounded-[14px] px-3 py-3 text-slate-700 ${
+                      notification.unread ? 'cursor-pointer' : 'opacity-80'
+                    }`}
+                  >
+                    <div className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center">
+                      {isReading ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-[#5051F9]" />
+                      ) : (
+                        <div
+                          className={`h-2 w-2 rounded-full bg-[#5051F9] ${
+                            notification.unread ? 'opacity-100' : 'opacity-0'
+                          }`}
+                        />
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="line-clamp-2 text-sm font-medium text-slate-900">
+                        {notification.title}
+                      </p>
+                      <div className="mt-1 flex items-center gap-2 text-xs text-slate-500">
+                        <span>{notification.time}</span>
+                        {!notification.unread && !isReading ? <span>Read</span> : null}
+                      </div>
+                    </div>
+                  </DropdownMenuItem>
+                )
+              }) : (
+                <DropdownMenuItem disabled className="rounded-[14px] px-3 py-3 text-slate-500">
+                  No notifications yet.
                 </DropdownMenuItem>
-              ))}
+              )}
             </div>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -261,10 +312,13 @@ export default function HeaderBar({
               <Avatar
                 className={`${octomAvatarBaseClass} h-12 w-12 rounded-[20px]`}
                 style={{ backgroundColor: '#E0E7FF' }}
-                title="DevQuest Admin"
+                title={currentUser.fullName}
               >
+                {currentUser.avatarUrl ? (
+                  <AvatarImage src={currentUser.avatarUrl} alt={currentUser.fullName} />
+                ) : null}
                 <AvatarFallback className={octomAvatarFallbackClass} style={{ backgroundColor: '#E0E7FF' }}>
-                  DQ
+                  {userInitials}
                 </AvatarFallback>
               </Avatar>
               <ChevronDown className="h-4 w-4 text-slate-400" />
@@ -273,8 +327,8 @@ export default function HeaderBar({
 
           <DropdownMenuContent align="end" className="w-56 rounded-[20px] border-0 bg-white p-2 shadow-xl ring-1 ring-slate-200/70">
             <DropdownMenuLabel className="px-3 py-2">
-              <p className="text-sm font-semibold text-slate-900">DevQuest Admin</p>
-              <p className="text-xs font-normal text-slate-500">admin@devquest.app</p>
+              <p className="text-sm font-semibold text-slate-900">{currentUser.fullName}</p>
+              <p className="text-xs font-normal text-slate-500">{currentUser.email || 'No email available'}</p>
             </DropdownMenuLabel>
             <DropdownMenuSeparator className="bg-slate-200/70" />
             <DropdownMenuItem asChild className="rounded-[14px] px-3 py-2 text-slate-700">

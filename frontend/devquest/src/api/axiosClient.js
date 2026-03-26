@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { AUTH_TOKEN_KEY } from '../constants/auth';
+import { disconnectRealtimeClient } from '@/lib/realtime/stompClient'
 
 const axiosClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
@@ -28,6 +29,7 @@ axiosClient.interceptors.response.use((response) => {
 
   if (status === 401) {
     localStorage.removeItem(AUTH_TOKEN_KEY);
+    void disconnectRealtimeClient();
     window.location.href = '/login';
   }
 

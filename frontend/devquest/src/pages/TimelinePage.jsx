@@ -5,13 +5,13 @@ import {
   endOfDay,
   format,
   getDaysInMonth,
-  isSameDay,
   parseISO,
   startOfDay,
   startOfMonth,
 } from 'date-fns'
 import { CalendarDays, Search } from 'lucide-react'
-import { useOutletContext } from 'react-router-dom'
+import { useOutletContext, useParams } from 'react-router-dom'
+import EmptyStatePanel from '@/components/common/EmptyStatePanel'
 import {
   GanttFeatureList,
   GanttFeatureListGroup,
@@ -46,7 +46,7 @@ import {
   octomSecondaryButtonClass,
   octomSelectTriggerClass,
 } from '@/constants/uiStyles'
-import { MOCK_TIMELINE_DATA } from '@/data/mockTimeline'
+import workspaceApi from '@/api/workspaceApi'
 
 const timelineViewOptions = {
   month: { label: 'Month', range: 'daily', columnWidth: 50 },
@@ -90,17 +90,67 @@ function calculateTaskBarMetrics(task, boardStartDate, timelineView) {
 }
 
 export default function TimelinePage() {
+  const { workspaceId } = useParams()
   const { searchQuery, setSearchQuery } = useOutletContext()
   const [timelineView, setTimelineView] = useState('month')
   const [activeMemberId, setActiveMemberId] = useState('ALL')
   const [ganttKey, setGanttKey] = useState(0)
+  const [timelineData, setTimelineData] = useState({ members: [], tasks: [] })
+  const [isLoadingTimeline, setIsLoadingTimeline] = useState(false)
+  const [timelineError, setTimelineError] = useState('')
   const ganttShellRef = useRef(null)
   const boardStartDate = useMemo(() => getTimelineBoardStart(), [])
+
+  useEffect(() => {
+    if (!workspaceId) {
+      setTimelineData({ members: [], tasks: [] })
+      return
+    }
+
+    let isMounted = true
+
+    const loadTimeline = async () => {
+      setIsLoadingTimeline(true)
+      setTimelineError('')
+
+      try {
+        const data = await workspaceApi.getTimeline(workspaceId)
+
+        if (!isMounted) {
+          return
+        }
+
+        setTimelineData({
+          members: Array.isArray(data?.members) ? data.members : [],
+          tasks: Array.isArray(data?.tasks) ? data.tasks : [],
+        })
+      } catch (error) {
+        if (!isMounted) {
+          return
+        }
+
+        setTimelineData({ members: [], tasks: [] })
+        setTimelineError(
+          error?.response?.data?.message ?? error?.message ?? 'Unable to load timeline data.',
+        )
+      } finally {
+        if (isMounted) {
+          setIsLoadingTimeline(false)
+        }
+      }
+    }
+
+    void loadTimeline()
+
+    return () => {
+      isMounted = false
+    }
+  }, [workspaceId])
 
   const filteredTasks = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase()
 
-    return MOCK_TIMELINE_DATA.tasks.filter((task) => {
+    return timelineData.tasks.filter((task) => {
       const matchesMember = activeMemberId === 'ALL' || task.assignee.id === activeMemberId
       const matchesSearch =
         !normalizedQuery ||
@@ -108,12 +158,12 @@ export default function TimelinePage() {
 
       return matchesMember && matchesSearch
     })
-  }, [activeMemberId, searchQuery])
+  }, [activeMemberId, searchQuery, timelineData.tasks])
 
   const features = useMemo(
     () =>
       filteredTasks.map((task) => ({
-        id: `timeline-task-${task.id}`,
+        id: String(task.id),
         name: task.title,
         startAt: parseISO(task.startDate),
         endAt: parseISO(task.dueDate),
@@ -143,6 +193,40 @@ export default function TimelinePage() {
 
   const handleTodayClick = () => {
     setGanttKey((current) => current + 1)
+  }
+
+  if (isLoadingTimeline && !timelineData.tasks.length) {
+    return (
+      <div className="flex min-h-[320px] items-center justify-center px-6">
+        <Card className={octomLoadingCardClass}>Loading timeline view...</Card>
+      </div>
+    )
+  }
+
+  if (timelineError && !timelineData.tasks.length) {
+    return (
+      <main className="flex min-h-[420px] items-center">
+        <EmptyStatePanel
+          eyebrow="Timeline data"
+          title="Unable to load timeline"
+          description={timelineError}
+          primaryActionLabel="Refresh view"
+          onPrimaryAction={() => window.location.reload()}
+        />
+      </main>
+    )
+  }
+
+  if (!timelineData.tasks.length) {
+    return (
+      <main className="flex min-h-[420px] items-center">
+        <EmptyStatePanel
+          eyebrow="Timeline data"
+          title="No timeline tasks available"
+          description="This workspace does not have timeline data yet, and the page is no longer falling back to mock tasks."
+        />
+      </main>
+    )
   }
 
   return (
@@ -204,7 +288,7 @@ export default function TimelinePage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="ALL">All members</SelectItem>
-                {MOCK_TIMELINE_DATA.members.map((member) => (
+                {timelineData.members.map((member) => (
                   <SelectItem key={member.id} value={member.id}>
                     {member.name}
                   </SelectItem>

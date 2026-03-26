@@ -7,10 +7,10 @@ import LandingPage from '@/pages/LandingPage'
 import PlaceholderPage from '@/pages/PlaceholderPage'
 import VerifyPage from '@/pages/VerifyPage'
 import WorkspaceEmptyPage from '@/pages/WorkspaceEmptyPage'
+import { useWorkspaceShell } from '@/contexts/WorkspaceShellContext'
 import ProtectedLayout from '@/routes/ProtectedLayout'
 import { Card } from '@/components/ui/card'
 import { octomLoadingCardClass } from '@/constants/uiStyles'
-import { DEFAULT_BOARD_IDS, DEFAULT_WORKSPACE_ID, HAS_WORKSPACES } from '@/data/mockWorkspaceGraph'
 
 const TasksPage = lazy(() => import('@/pages/TasksPage'))
 const TimelinePage = lazy(() => import('@/pages/TimelinePage'))
@@ -25,27 +25,49 @@ const placeholderPages = [
   },
 ]
 
+function WorkspaceRedirectFallback({ label }) {
+  return (
+    <div className="flex min-h-[320px] items-center justify-center px-6">
+      <Card className={octomLoadingCardClass}>{label}</Card>
+    </div>
+  )
+}
+
 function RedirectToDefaultDashboard() {
-  if (!HAS_WORKSPACES || !DEFAULT_WORKSPACE_ID) {
+  const { isLoadingWorkspaces, preferredWorkspaceId, workspaces } = useWorkspaceShell()
+  const resolvedWorkspaceId = preferredWorkspaceId ?? workspaces[0]?.id ?? null
+
+  if (isLoadingWorkspaces) {
+    return <WorkspaceRedirectFallback label="Loading workspace..." />
+  }
+
+  if (!resolvedWorkspaceId) {
     return <Navigate to="/workspace-empty" replace />
   }
 
-  return <Navigate to={`/w/${DEFAULT_WORKSPACE_ID}/dashboard`} replace />
+  return <Navigate to={`/w/${resolvedWorkspaceId}/dashboard`} replace />
 }
 
 function RedirectToDefaultBoard() {
-  if (!HAS_WORKSPACES || !DEFAULT_WORKSPACE_ID) {
+  const { isLoadingWorkspaces, preferredWorkspaceId, workspaces, getPreferredBoardId } = useWorkspaceShell()
+  const resolvedWorkspaceId = preferredWorkspaceId ?? workspaces[0]?.id ?? null
+
+  if (isLoadingWorkspaces) {
+    return <WorkspaceRedirectFallback label="Loading workspace..." />
+  }
+
+  if (!resolvedWorkspaceId) {
     return <Navigate to="/workspace-empty" replace />
   }
 
-  const nextBoardId = DEFAULT_BOARD_IDS[DEFAULT_WORKSPACE_ID]
+  const nextBoardId = getPreferredBoardId(resolvedWorkspaceId)
 
   return (
     <Navigate
       to={
         nextBoardId
-          ? `/w/${DEFAULT_WORKSPACE_ID}/boards/${nextBoardId}`
-          : `/w/${DEFAULT_WORKSPACE_ID}/boards`
+          ? `/w/${resolvedWorkspaceId}/boards/${nextBoardId}`
+          : `/w/${resolvedWorkspaceId}/boards`
       }
       replace
     />
@@ -53,27 +75,48 @@ function RedirectToDefaultBoard() {
 }
 
 function RedirectToDefaultTimeline() {
-  if (!HAS_WORKSPACES || !DEFAULT_WORKSPACE_ID) {
+  const { isLoadingWorkspaces, preferredWorkspaceId, workspaces } = useWorkspaceShell()
+  const resolvedWorkspaceId = preferredWorkspaceId ?? workspaces[0]?.id ?? null
+
+  if (isLoadingWorkspaces) {
+    return <WorkspaceRedirectFallback label="Loading workspace..." />
+  }
+
+  if (!resolvedWorkspaceId) {
     return <Navigate to="/workspace-empty" replace />
   }
 
-  return <Navigate to={`/w/${DEFAULT_WORKSPACE_ID}/timeline`} replace />
+  return <Navigate to={`/w/${resolvedWorkspaceId}/timeline`} replace />
 }
 
 function RedirectToDefaultMessages() {
-  if (!HAS_WORKSPACES || !DEFAULT_WORKSPACE_ID) {
+  const { isLoadingWorkspaces, preferredWorkspaceId, workspaces } = useWorkspaceShell()
+  const resolvedWorkspaceId = preferredWorkspaceId ?? workspaces[0]?.id ?? null
+
+  if (isLoadingWorkspaces) {
+    return <WorkspaceRedirectFallback label="Loading workspace..." />
+  }
+
+  if (!resolvedWorkspaceId) {
     return <Navigate to="/workspace-empty" replace />
   }
 
-  return <Navigate to={`/w/${DEFAULT_WORKSPACE_ID}/messages`} replace />
+  return <Navigate to={`/w/${resolvedWorkspaceId}/messages`} replace />
 }
 
 function RedirectToDefaultSettings() {
-  if (!HAS_WORKSPACES || !DEFAULT_WORKSPACE_ID) {
+  const { isLoadingWorkspaces, preferredWorkspaceId, workspaces } = useWorkspaceShell()
+  const resolvedWorkspaceId = preferredWorkspaceId ?? workspaces[0]?.id ?? null
+
+  if (isLoadingWorkspaces) {
+    return <WorkspaceRedirectFallback label="Loading workspace..." />
+  }
+
+  if (!resolvedWorkspaceId) {
     return <Navigate to="/workspace-empty" replace />
   }
 
-  return <Navigate to={`/w/${DEFAULT_WORKSPACE_ID}/settings`} replace />
+  return <Navigate to={`/w/${resolvedWorkspaceId}/settings`} replace />
 }
 
 function RedirectWorkspaceIndex() {

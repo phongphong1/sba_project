@@ -1,5 +1,6 @@
 import authApi from '@/api/authApi'
 import { AUTH_TOKEN_KEY } from '@/constants/auth'
+import { disconnectRealtimeClient } from '@/lib/realtime/stompClient'
 
 const persistToken = (token) => localStorage.setItem(AUTH_TOKEN_KEY, token)
 const clearToken = () => localStorage.removeItem(AUTH_TOKEN_KEY)
@@ -51,6 +52,7 @@ export function useAuthActions() {
         }
       } finally {
         clearToken()
+        await disconnectRealtimeClient()
       }
     },
   }

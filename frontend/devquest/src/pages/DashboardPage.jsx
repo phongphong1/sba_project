@@ -5,8 +5,9 @@ import AnalyticsChart from '@/components/dashboard/AnalyticsChart'
 import RightPanel from '@/components/dashboard/RightPanel'
 import StatsCard from '@/components/dashboard/StatsCard'
 import TaskList from '@/components/dashboard/TaskList'
-import { DEFAULT_WORKSPACE_ID } from '@/data/mockWorkspaceGraph'
-import { useWorkspaceShell } from '@/contexts/WorkspaceShellContext'
+import { Card } from '@/components/ui/card'
+import { octomLoadingCardClass } from '@/constants/uiStyles'
+import { useDashboardData } from '@/hooks/useDashboardData'
 
 function normalizePriority(priority) {
   return `${priority.slice(0, 1)}${priority.slice(1).toLowerCase()}`
@@ -14,8 +15,18 @@ function normalizePriority(priority) {
 
 export default function DashboardPage() {
   const { workspaceId } = useParams()
-  const { searchQuery, currentWorkspace } = useOutletContext()
-  const { getWorkspaceOverview } = useWorkspaceShell()
+  const { searchQuery } = useOutletContext()
+
+  if (!workspaceId) {
+    return <Navigate to="/workspace-empty" replace />
+  }
+
+  return <DashboardWorkspaceView key={workspaceId} workspaceId={workspaceId} searchQuery={searchQuery} />
+}
+
+function DashboardWorkspaceView({ workspaceId, searchQuery }) {
+  const { dashboardData, isLoadingDashboard, dashboardError, refreshDashboard } =
+    useDashboardData(workspaceId)
   const [quickTasks, setQuickTasks] = useState([])
   const [reminderState, setReminderState] = useState({})
   const [draftTask, setDraftTask] = useState({
@@ -23,12 +34,20 @@ export default function DashboardPage() {
     assigneeId: '',
     dueDate: '',
   })
-  const workspaceOverview = currentWorkspace ? getWorkspaceOverview(currentWorkspace.id) : null
-
-  const team = workspaceOverview?.members ?? []
+  const team = useMemo(() => dashboardData?.members ?? [], [dashboardData?.members])
+  const boardSummaries = useMemo(
+    () => dashboardData?.boardSummaries ?? [],
+    [dashboardData?.boardSummaries],
+  )
+  const workspaceTasks = useMemo(() => dashboardData?.tasks ?? [], [dashboardData?.tasks])
+  const schedule = useMemo(() => dashboardData?.schedule ?? [], [dashboardData?.schedule])
+  const weeklyOutput = useMemo(
+    () => dashboardData?.weeklyOutput ?? [],
+    [dashboardData?.weeklyOutput],
+  )
 
   const effectiveDraftTask = useMemo(() => {
-    if (draftTask.assigneeId || !team[0]) return draftTask
+    if (draftTask.assigneeId || !team.length) return draftTask
 
     return {
       ...draftTask,
@@ -36,56 +55,41 @@ export default function DashboardPage() {
     }
   }, [draftTask, team])
 
-  if (!workspaceOverview || workspaceId !== currentWorkspace?.id) {
-    return <Navigate to={DEFAULT_WORKSPACE_ID ? `/w/${DEFAULT_WORKSPACE_ID}/dashboard` : '/workspace-empty'} replace />
-  }
-
-  if (!workspaceOverview.boardSummaries.length) {
-    return (
-      <main className="flex min-h-[420px] items-center">
-        <EmptyStatePanel
-          eyebrow="Workspace boards"
-          title="This workspace has no boards yet"
-          description="The workspace is available, but there is no board to organize columns and tasks yet. Once the backend returns the first board, this dashboard will start summarizing activity automatically."
-          primaryActionLabel="Refresh view"
-          onPrimaryAction={() => window.location.reload()}
-        />
-      </main>
-    )
-  }
-
-  const dashboardStats = [
-    {
-      id: 1,
-      title: 'Boards in workspace',
-      metric: String(workspaceOverview.boardSummaries.length),
-      delta: `${workspaceOverview.boardSummaries.filter((board) => board.taskCount > 0).length} active`,
-      trend: 'up',
-      description: 'Boards currently carrying delivery work',
-      icon: 'dashboard',
-    },
-    {
-      id: 2,
-      title: 'Workspace members',
-      metric: String(team.length),
-      delta: `${workspaceOverview.tasks.filter((task) => task.status !== 'done').length} open tasks`,
-      trend: 'up',
-      description: 'People assigned across current boards',
-      icon: 'tasks',
-    },
-    {
-      id: 3,
-      title: 'Tasks in review',
-      metric: String(workspaceOverview.tasks.filter((task) => task.status === 'review').length),
-      delta: `${workspaceOverview.tasks.filter((task) => task.status === 'done').length} completed`,
-      trend: 'down',
-      description: 'Items waiting for sign-off right now',
-      icon: 'sparkles',
-    },
-  ]
+  const dashboardStats = useMemo(
+    () => [
+      {
+        id: 1,
+        title: 'Boards in workspace',
+        metric: String(boardSummaries.length),
+        delta: `${boardSummaries.filter((board) => board.taskCount > 0).length} active`,
+        trend: 'up',
+        description: 'Boards currently carrying delivery work',
+        icon: 'dashboard',
+      },
+      {
+        id: 2,
+        title: 'Workspace members',
+        metric: String(team.length),
+        delta: `${workspaceTasks.filter((task) => task.status !== 'done').length} open tasks`,
+        trend: 'up',
+        description: 'People assigned across current boards',
+        icon: 'tasks',
+      },
+      {
+        id: 3,
+        title: 'Tasks in review',
+        metric: String(workspaceTasks.filter((task) => task.status === 'review').length),
+        delta: `${workspaceTasks.filter((task) => task.status === 'done').length} completed`,
+        trend: 'down',
+        description: 'Items waiting for sign-off right now',
+        icon: 'sparkles',
+      },
+    ],
+    [boardSummaries, team.length, workspaceTasks],
+  )
 
   const filteredTasks = useMemo(() => {
-    const allTasks = [...quickTasks, ...workspaceOverview.tasks].map((task) => ({
+    const allTasks = [...quickTasks, ...workspaceTasks].map((task) => ({
       ...task,
       priority: normalizePriority(task.priority),
       reminderEnabled: reminderState[task.id] ?? task.reminderEnabled ?? false,
@@ -100,7 +104,51 @@ export default function DashboardPage() {
         `${task.title} ${task.assignee?.name ?? ''} ${task.status} ${task.sprint}`.toLowerCase()
       return combined.includes(normalizedQuery)
     })
-  }, [quickTasks, reminderState, searchQuery, workspaceOverview.tasks])
+  }, [quickTasks, reminderState, searchQuery, workspaceTasks])
+
+  if (isLoadingDashboard && !dashboardData) {
+    return (
+      <div className="flex min-h-[320px] items-center justify-center px-6">
+        <Card className={octomLoadingCardClass}>Loading dashboard overview...</Card>
+      </div>
+    )
+  }
+
+  if (dashboardError && !dashboardData) {
+    return (
+      <main className="flex min-h-[420px] items-center">
+        <EmptyStatePanel
+          eyebrow="Dashboard overview"
+          title="Unable to load this workspace"
+          description={dashboardError}
+          primaryActionLabel="Try again"
+          onPrimaryAction={() => {
+            void refreshDashboard()
+          }}
+        />
+      </main>
+    )
+  }
+
+  if (!dashboardData) {
+    return <Navigate to="/workspace-empty" replace />
+  }
+
+  if (!boardSummaries.length) {
+    return (
+      <main className="flex min-h-[420px] items-center">
+        <EmptyStatePanel
+          eyebrow="Workspace boards"
+          title="This workspace has no boards yet"
+          description="The workspace is available, but there is no board to organize columns and tasks yet. Once the backend returns the first board, this dashboard will start summarizing activity automatically."
+          primaryActionLabel="Refresh view"
+          onPrimaryAction={() => {
+            void refreshDashboard()
+          }}
+        />
+      </main>
+    )
+  }
 
   const handleToggleReminder = (taskId) => {
     setReminderState((current) => ({
@@ -128,14 +176,14 @@ export default function DashboardPage() {
 
     setQuickTasks((currentTasks) => [
       {
-        id: `quick-${Date.now()}`,
-        boardId: workspaceOverview.boardSummaries[0]?.id ?? null,
-        boardName: workspaceOverview.boardSummaries[0]?.name ?? 'General board',
+        id: String(Date.now()),
+        boardId: boardSummaries[0]?.id ?? null,
+        boardName: boardSummaries[0]?.name ?? 'General board',
         position: currentTasks.length + 1,
         title: effectiveDraftTask.title.trim(),
         status: 'todo',
         priority: 'Medium',
-        sprint: workspaceOverview.boardSummaries[0]?.name ?? 'Backlog',
+        sprint: boardSummaries[0]?.name ?? 'Backlog',
         progress: 18,
         dueDate: effectiveDraftTask.dueDate.trim() || 'Tomorrow, 02:00 PM',
         reminderEnabled: false,
@@ -174,13 +222,12 @@ export default function DashboardPage() {
           ))}
         </section>
 
-        <AnalyticsChart data={workspaceOverview.weeklyOutput} />
+        <AnalyticsChart data={weeklyOutput} />
         <TaskList tasks={filteredTasks} onToggleReminder={handleToggleReminder} />
       </main>
 
       <RightPanel
-        schedule={workspaceOverview.schedule}
-        messages={workspaceOverview.updates}
+        schedule={schedule}
         team={team.map((member) => ({ ...member, name: member.fullName }))}
         draftTask={effectiveDraftTask}
         onDraftChange={handleDraftChange}

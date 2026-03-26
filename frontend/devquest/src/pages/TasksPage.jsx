@@ -14,8 +14,12 @@ import TaskDetailModal from '@/components/tasks/TaskDetailModal'
 import { Card } from '@/components/ui/card'
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
 import { octomLoadingCardClass } from '@/constants/uiStyles'
-import { DEFAULT_WORKSPACE_ID } from '@/data/mockWorkspaceGraph'
 import { useWorkspaceShell } from '@/contexts/WorkspaceShellContext'
+import { useBoardData } from '@/hooks/useBoardData'
+import {
+  sendTaskMoveCommand,
+  subscribeToWorkspaceTasks,
+} from '@/lib/realtime/stompClient'
 
 function sortByPosition(items) {
   return [...items].sort((a, b) => a.position - b.position)
@@ -46,64 +50,136 @@ function reindexColumns(columns) {
   }))
 }
 
+function coerceCommandId(value) {
+  const normalizedValue = String(value ?? '').trim()
+
+  if (/^\d+$/.test(normalizedValue)) {
+    return Number(normalizedValue)
+  }
+
+  return value
+}
+
+function applyTaskMovedEvent(currentData, event, workspaceId) {
+  if (!currentData || event?.type !== 'TASK_MOVED' || !event.payload || typeof event.payload !== 'object') {
+    return currentData
+  }
+
+  const payloadWorkspaceId = String(event.payload.workspaceId ?? '')
+
+  if (payloadWorkspaceId && payloadWorkspaceId !== String(workspaceId)) {
+    return currentData
+  }
+
+  const targetTaskId = String(event.payload.taskId ?? '')
+
+  if (!targetTaskId) {
+    return currentData
+  }
+
+  const hasTaskOnBoard = currentData.tasks.some((task) => String(task.id) === targetTaskId)
+
+  if (!hasTaskOnBoard) {
+    return currentData
+  }
+
+  const updatedTasks = currentData.tasks.map((task) =>
+    String(task.id) === targetTaskId
+      ? {
+          ...task,
+          columnId: String(event.payload.toColumnId ?? task.columnId),
+          position: Number(event.payload.position ?? task.position),
+        }
+      : task,
+  )
+
+  return {
+    ...currentData,
+    tasks: sortTasksForBoard(currentData.columns, updatedTasks),
+  }
+}
+
+function buildTaskMovePayload(currentData, workspaceId, activeId, overId) {
+  if (!currentData) {
+    return null
+  }
+
+  const activeTask = currentData.tasks.find((task) => String(task.id) === String(activeId))
+
+  if (!activeTask) {
+    return null
+  }
+
+  const overTask = currentData.tasks.find((task) => String(task.id) === String(overId))
+  const toColumnId = String(overTask?.columnId ?? overId)
+  const tasksInDestinationColumn = sortByPosition(
+    currentData.tasks.filter(
+      (task) => task.columnId === toColumnId && String(task.id) !== String(activeTask.id),
+    ),
+  )
+
+  const overIndex = overTask
+    ? tasksInDestinationColumn.findIndex((task) => String(task.id) === String(overTask.id))
+    : -1
+  const insertionIndex = overIndex >= 0 ? overIndex : tasksInDestinationColumn.length
+  const reorderedColumnTasks = [...tasksInDestinationColumn]
+
+  reorderedColumnTasks.splice(insertionIndex, 0, {
+    ...activeTask,
+    columnId: toColumnId,
+  })
+
+  const reindexedColumnTasks = reindexTasks(reorderedColumnTasks, toColumnId)
+  const movedTask = reindexedColumnTasks.find((task) => String(task.id) === String(activeTask.id))
+
+  return {
+    workspaceId: coerceCommandId(workspaceId),
+    taskId: coerceCommandId(activeTask.id),
+    fromColumnId: coerceCommandId(activeTask.columnId),
+    toColumnId: coerceCommandId(toColumnId),
+    position: movedTask?.position ?? activeTask.position,
+  }
+}
+
 export default function TasksPage() {
   const navigate = useNavigate()
   const { workspaceId, boardId } = useParams()
   const { currentWorkspace } = useOutletContext()
-  const { getHydratedBoard, getWorkspaceOverview, getPreferredBoardId } = useWorkspaceShell()
-  const [boardData, setBoardData] = useState(null)
+  const { getPreferredBoardId, setPreferredBoard } = useWorkspaceShell()
+  const { boardPayload, isLoadingBoard, boardError, refreshBoard } = useBoardData(workspaceId, boardId)
+  const [boardDraft, setBoardDraft] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [activePriority, setActivePriority] = useState('ALL')
   const [selectedTaskId, setSelectedTaskId] = useState(null)
-  const workspaceOverview = currentWorkspace ? getWorkspaceOverview(currentWorkspace.id) : null
-  const resolvedBoard = useMemo(() => {
-    if (!workspaceId || !boardId) return null
+  const workspaceBoards = useMemo(() => boardPayload?.boards ?? [], [boardPayload?.boards])
+  const workspaceMembers = useMemo(
+    () => boardPayload?.workspaceMembers ?? [],
+    [boardPayload?.workspaceMembers],
+  )
+  const resolvedBoard = useMemo(() => boardPayload?.board ?? null, [boardPayload?.board])
+  const boardData = useMemo(() => {
+    if (boardDraft && resolvedBoard && boardDraft.id === resolvedBoard.id) {
+      return boardDraft
+    }
 
-    return getHydratedBoard(workspaceId, boardId)
-  }, [boardId, getHydratedBoard, workspaceId])
+    return resolvedBoard
+  }, [boardDraft, resolvedBoard])
 
   useEffect(() => {
-    setBoardData(resolvedBoard)
-    setSearchQuery('')
-    setSelectedTaskId(null)
-  }, [resolvedBoard])
+    if (!workspaceId) {
+      return undefined
+    }
 
-  if (!currentWorkspace || workspaceId !== currentWorkspace.id) {
-    return <Navigate to={DEFAULT_WORKSPACE_ID ? `/w/${DEFAULT_WORKSPACE_ID}/dashboard` : '/workspace-empty'} replace />
-  }
+    const unsubscribe = subscribeToWorkspaceTasks(workspaceId, (event) => {
+      setBoardDraft((currentData) => applyTaskMovedEvent(currentData ?? resolvedBoard, event, workspaceId))
+    })
 
-  if (!workspaceOverview) {
-    return <Navigate to={DEFAULT_WORKSPACE_ID ? `/w/${DEFAULT_WORKSPACE_ID}/dashboard` : '/workspace-empty'} replace />
-  }
+    return () => {
+      unsubscribe()
+    }
+  }, [resolvedBoard, workspaceId])
 
-  const preferredBoardId = getPreferredBoardId(currentWorkspace.id)
-
-  if (!boardId && preferredBoardId) {
-    return <Navigate to={`/w/${currentWorkspace.id}/boards/${preferredBoardId}`} replace />
-  }
-
-  if (boardId && !resolvedBoard && preferredBoardId) {
-    return (
-      <Navigate
-        to={`/w/${currentWorkspace.id}/boards/${preferredBoardId}`}
-        replace
-      />
-    )
-  }
-
-  if (!workspaceOverview.boardSummaries.length) {
-    return (
-      <main className="flex min-h-[420px] items-center">
-        <EmptyStatePanel
-          eyebrow="Workspace boards"
-          title="No board exists in this workspace yet"
-          description="Boards are the layer between workspace members and task columns. As soon as the backend returns a board list, users will be able to switch boards from this screen."
-          primaryActionLabel="Back to dashboard"
-          onPrimaryAction={() => navigate(`/w/${currentWorkspace.id}/dashboard`)}
-        />
-      </main>
-    )
-  }
+  const preferredBoardId = workspaceId ? getPreferredBoardId(workspaceId) : null
 
   const filteredTasks = useMemo(() => {
     if (!boardData) return []
@@ -166,15 +242,16 @@ export default function TasksPage() {
   )
 
   const handleAddColumn = () => {
-    setBoardData((currentData) => {
-      const nextPosition = currentData.columns.length + 1
+    setBoardDraft((currentData) => {
+      const currentBoardData = currentData ?? boardData
+      const nextPosition = currentBoardData.columns.length + 1
 
       return {
-        ...currentData,
+        ...currentBoardData,
         columns: [
-          ...currentData.columns,
+          ...currentBoardData.columns,
           {
-            id: `col-${Date.now()}`,
+            id: String(Date.now()),
             name: `New Column ${nextPosition}`,
             position: nextPosition * 1000,
           },
@@ -186,15 +263,17 @@ export default function TasksPage() {
   const handleBoardSelect = (nextBoardId) => {
     if (nextBoardId === boardData?.id) return
 
-    navigate(`/w/${currentWorkspace.id}/boards/${nextBoardId}`)
+    setPreferredBoard(workspaceId, nextBoardId)
+    navigate(`/w/${workspaceId}/boards/${nextBoardId}`)
   }
 
   const handleColumnsChange = (newColumns) => {
-    setBoardData((currentData) => {
-      const columnMap = new Map(currentData.columns.map((column) => [column.id, column]))
+    setBoardDraft((currentData) => {
+      const currentBoardData = currentData ?? boardData
+      const columnMap = new Map(currentBoardData.columns.map((column) => [column.id, column]))
 
       return {
-        ...currentData,
+        ...currentBoardData,
         columns: reindexColumns(
           newColumns
             .map((column) => columnMap.get(column.id))
@@ -205,10 +284,11 @@ export default function TasksPage() {
   }
 
   const handleKanbanDataChange = (newKanbanData) => {
-    setBoardData((currentData) => {
+    setBoardDraft((currentData) => {
+      const currentBoardData = currentData ?? boardData
       const visibleTaskIds = new Set(filteredTasks.map((task) => task.id))
-      const taskMap = new Map(currentData.tasks.map((task) => [task.id, task]))
-      const hiddenTasks = currentData.tasks.filter((task) => !visibleTaskIds.has(task.id))
+      const taskMap = new Map(currentBoardData.tasks.map((task) => [task.id, task]))
+      const hiddenTasks = currentBoardData.tasks.filter((task) => !visibleTaskIds.has(task.id))
 
       const updatedVisibleTasks = newKanbanData
         .map((item) => {
@@ -231,7 +311,7 @@ export default function TasksPage() {
       })
 
       return {
-        ...currentData,
+        ...currentBoardData,
         tasks: mergedTasks,
       }
     })
@@ -243,19 +323,78 @@ export default function TasksPage() {
     if (!active || !over || active.id === over.id) return
     if (active.data.current?.type === 'column') return
 
-    const activeTask = boardData?.tasks.find((task) => task.id === active.id)
-    const overTask = boardData?.tasks.find((task) => task.id === over.id)
-    const overColumnId = overTask?.columnId ?? String(over.id)
+    const movePayload = buildTaskMovePayload(boardData, workspaceId, active.id, over.id)
 
-    const movePayload = {
-      taskId: String(active.id),
-      fromColumnId: activeTask?.columnId ?? null,
-      toColumnId: overColumnId,
-      overTaskId: String(over.id),
+    if (!movePayload) {
+      return
     }
 
-    void movePayload
-    // Reserve this payload for PATCH /api/tasks/move.
+    void sendTaskMoveCommand(movePayload).catch((error) => {
+      console.error('Failed to publish task move command:', error)
+    })
+  }
+
+  if (!workspaceId) {
+    return <Navigate to="/workspace-empty" replace />
+  }
+
+  if (isLoadingBoard && !boardPayload) {
+    return (
+      <div className="flex min-h-[320px] items-center justify-center px-6">
+        <Card className={octomLoadingCardClass}>
+          Loading tasks board...
+        </Card>
+      </div>
+    )
+  }
+
+  if (boardError && !boardPayload) {
+    return (
+      <main className="flex min-h-[420px] items-center">
+        <EmptyStatePanel
+          eyebrow="Workspace boards"
+          title="Unable to load board data"
+          description={boardError}
+          primaryActionLabel="Try again"
+          onPrimaryAction={() => {
+            void refreshBoard()
+          }}
+          secondaryActionLabel="Back to dashboard"
+          onSecondaryAction={() => navigate(`/w/${workspaceId}/dashboard`)}
+        />
+      </main>
+    )
+  }
+
+  if (!boardId && preferredBoardId) {
+    return <Navigate to={`/w/${workspaceId}/boards/${preferredBoardId}`} replace />
+  }
+
+  if (!boardId && workspaceBoards[0]?.id) {
+    return <Navigate to={`/w/${workspaceId}/boards/${workspaceBoards[0].id}`} replace />
+  }
+
+  if (boardId && !resolvedBoard && workspaceBoards[0]?.id) {
+    return (
+      <Navigate
+        to={`/w/${workspaceId}/boards/${workspaceBoards[0].id}`}
+        replace
+      />
+    )
+  }
+
+  if (!workspaceBoards.length) {
+    return (
+      <main className="flex min-h-[420px] items-center">
+        <EmptyStatePanel
+          eyebrow="Workspace boards"
+          title="No board exists in this workspace yet"
+          description="Boards are the layer between workspace members and task columns. As soon as the backend returns a board list, users will be able to switch boards from this screen."
+          primaryActionLabel="Back to dashboard"
+          onPrimaryAction={() => navigate(`/w/${workspaceId}/dashboard`)}
+        />
+      </main>
+    )
   }
 
   if (!boardData) {
@@ -272,12 +411,12 @@ export default function TasksPage() {
     <>
       <div className="space-y-6">
         <BoardHeader
-          workspaceName={currentWorkspace.name}
+          workspaceName={currentWorkspace?.name ?? 'Workspace'}
           boardTitle={boardData.name}
           boardDescription={boardData.description}
           activeBoardId={boardData.id}
-          boards={workspaceOverview.boardSummaries}
-          workspaceMembers={workspaceOverview.members}
+          boards={workspaceBoards}
+          workspaceMembers={workspaceMembers}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           activePriority={activePriority}
@@ -296,7 +435,7 @@ export default function TasksPage() {
             primaryActionLabel="Add first column"
             onPrimaryAction={handleAddColumn}
             secondaryActionLabel="Back to dashboard"
-            onSecondaryAction={() => navigate(`/w/${currentWorkspace.id}/dashboard`)}
+            onSecondaryAction={() => navigate(`/w/${workspaceId}/dashboard`)}
           />
         ) : (
           <>
