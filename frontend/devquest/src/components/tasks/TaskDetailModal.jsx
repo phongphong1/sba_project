@@ -1,5 +1,6 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useState, useEffect, useCallback } from 'react'
 import { Card } from '@/components/ui/card'
+import workspaceApi from '@/api/workspaceApi'
 import {
   Drawer,
   DrawerContent,
@@ -8,7 +9,29 @@ import { octomDrawerContentClass, octomLoadingCardClass } from '@/constants/uiSt
 
 const TaskDetailDrawerContent = lazy(() => import('@/components/tasks/TaskDetailDrawerContent'))
 
-export default function TaskDetailModal({ task, onClose }) {
+export default function TaskDetailModal({ task, onClose, onDeleteTask }) {
+  const [subtasks, setSubtasks] = useState(null)
+  const taskNumericId = task ? String(task.id).replace('tsk_', '') : null
+
+  const fetchSubtasks = useCallback(async () => {
+    if (!taskNumericId) return
+    try {
+      const data = await workspaceApi.getSubtasks(taskNumericId)
+      const list = Array.isArray(data) ? data : (data?.data || [])
+      setSubtasks(list.map((i) => ({ ...i, done: !!i.done })))
+    } catch (err) {
+      setSubtasks([])
+    }
+  }, [taskNumericId])
+
+  useEffect(() => {
+    if (task) {
+      void fetchSubtasks()
+    } else {
+      setSubtasks(null)
+    }
+  }, [task, fetchSubtasks])
+
   return (
     <Drawer open={Boolean(task)} onOpenChange={(open) => !open && onClose()} direction="right">
       <DrawerContent className={octomDrawerContentClass}>
@@ -20,7 +43,18 @@ export default function TaskDetailModal({ task, onClose }) {
               </Card>
             }
           >
-            <TaskDetailDrawerContent task={task} />
+            {subtasks === null ? (
+              <Card className={octomLoadingCardClass}>
+                Loading task detail...
+              </Card>
+            ) : (
+              <TaskDetailDrawerContent
+                task={task}
+                subtasks={subtasks}
+                onRefreshSubtasks={fetchSubtasks}
+                onDeleteTask={onDeleteTask}
+              />
+            )}
           </Suspense>
         ) : null}
       </DrawerContent>

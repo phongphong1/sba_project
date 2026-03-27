@@ -32,6 +32,14 @@ import fpt.sba.devquest.repository.UserRepository;
 import fpt.sba.devquest.repository.WorkspaceMemberRepository;
 import fpt.sba.devquest.repository.WorkspaceRepository;
 import fpt.sba.devquest.service.WorkspaceDashboardService;
+import fpt.sba.devquest.service.EmailService;
+import fpt.sba.devquest.service.MagicLinkTokenService;
+import fpt.sba.devquest.dto.workspace.InviteMembersRequest;
+import fpt.sba.devquest.dto.workspace.InvitationAcceptResponse;
+import fpt.sba.devquest.entity.WorkspaceInvitation;
+import fpt.sba.devquest.dto.workspace.UserInvitationResponse;
+import fpt.sba.devquest.repository.WorkspaceInvitationRepository;
+import fpt.sba.devquest.util.JwtUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
@@ -55,7 +63,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
+import java.time.temporal.ChronoUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -77,6 +87,16 @@ public class WorkspaceDashboardServiceImpl implements WorkspaceDashboardService 
     private final SubtaskRepository subtaskRepository;
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
+    private final EmailService emailService;
+    private final MagicLinkTokenService magicLinkTokenService;
+    private final WorkspaceInvitationRepository workspaceInvitationRepository;
+    private final JwtUtils jwtUtils;
+
+    @org.springframework.beans.factory.annotation.Value("${app.invite.base-url:http://localhost:5173/invite}")
+    private String inviteBaseUrl;
+
+    @org.springframework.beans.factory.annotation.Value("${app.invite.expiry-hours:72}")
+    private long inviteExpiryHours;
 
     @Override
     @Transactional
@@ -643,5 +663,116 @@ public class WorkspaceDashboardServiceImpl implements WorkspaceDashboardService 
 
     private String safe(String value) {
         return value == null ? "" : value;
+    }
+
+    @Override
+    @Transactional
+    public void inviteMembers(String workspaceId, InviteMembersRequest request) {
+        User inviter = getCurrentUser();
+        Workspace workspace = workspaceRepository.findById(Long.parseLong(workspaceId))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Workspace not found."));
+
+        boolean isMember = workspaceMemberRepository
+                .findByWorkspace_IdAndUser_Id(workspace.getId(), inviter.getId())
+                .isPresent();
+        if (!isMember) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not a member of this workspace.");
+
+        for (String email : request.emails()) {
+            // Skip if already a member (by email)
+            if (userRepository.findByEmail(email)
+                    .flatMap(u -> workspaceMemberRepository.findByWorkspace_IdAndUser_Id(workspace.getId(), u.getId()))
+                    .isPresent()) {
+                continue;
+            }
+            // Skip if PENDING invite already exists
+            if (workspaceInvitationRepository
+                    .findByWorkspace_IdAndEmailAndStatus(workspace.getId(), email, "PENDING")
+                    .isPresent()) {
+                continue;
+            }
+
+            String token = UUID.randomUUID().toString().replace("-", "");
+            Instant expiresAt = Instant.now().plus(inviteExpiryHours, ChronoUnit.HOURS);
+
+            WorkspaceInvitation invitation = new WorkspaceInvitation();
+            invitation.setWorkspace(workspace);
+            invitation.setInviter(inviter);
+            invitation.setEmail(email);
+            invitation.setToken(token);
+            invitation.setStatus("PENDING");
+            invitation.setExpiresAt(expiresAt);
+            workspaceInvitationRepository.save(invitation);
+
+            String link = inviteBaseUrl + "?token=" + token;
+            HashMap<String, String> vars = new HashMap<>();
+            vars.put("inviterName", inviter.getFullname() != null ? inviter.getFullname() : inviter.getEmail());
+            vars.put("workspaceName", workspace.getName());
+            vars.put("inviteLink", link);
+            vars.put("expiryTime", String.valueOf(inviteExpiryHours));
+            emailService.sendEmailWithTemplate(email, "You're invited to " + workspace.getName() + " on DevQuest", "WorkspaceInvite", vars);
+        }
+    }
+
+    @Override
+    @Transactional
+    public InvitationAcceptResponse acceptInvitation(String token) {
+        WorkspaceInvitation invitation = workspaceInvitationRepository.findByToken(token)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Invitation not found or already used."));
+
+        if (!"PENDING".equals(invitation.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.GONE, "Invitation has already been accepted.");
+        }
+        if (Instant.now().isAfter(invitation.getExpiresAt())) {
+            invitation.setStatus("EXPIRED");
+            workspaceInvitationRepository.save(invitation);
+            throw new ResponseStatusException(HttpStatus.GONE, "Invitation has expired.");
+        }
+
+        User user = getCurrentUser();
+        Workspace workspace = invitation.getWorkspace();
+
+        boolean alreadyMember = workspaceMemberRepository
+                .findByWorkspace_IdAndUser_Id(workspace.getId(), user.getId())
+                .isPresent();
+
+        if (!alreadyMember) {
+            WorkspaceMemberId memberId = new WorkspaceMemberId();
+            memberId.setWorkspaceId(workspace.getId());
+            memberId.setUserId(user.getId());
+
+            WorkspaceMember member = new WorkspaceMember();
+            member.setId(memberId);
+            member.setWorkspace(workspace);
+            member.setUser(user);
+            member.setRole("MEMBER");
+            member.setJoinedAt(Instant.now());
+            workspaceMemberRepository.save(member);
+        }
+
+        invitation.setStatus("ACCEPTED");
+        workspaceInvitationRepository.save(invitation);
+
+        String jwt = jwtUtils.generateTokenFromUsername(user.getEmail());
+        return new InvitationAcceptResponse(jwt, String.valueOf(workspace.getId()), workspace.getName(),
+                alreadyMember ? "Already a member" : "Joined successfully");
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<UserInvitationResponse> getUserInvitations() {
+        User user = getCurrentUser();
+        List<WorkspaceInvitation> invitations = workspaceInvitationRepository
+                .findByEmailAndStatusOrderByCreatedAtDesc(user.getEmail(), "PENDING");
+
+        return invitations.stream().map(inv -> new UserInvitationResponse(
+                inv.getId(),
+                inv.getWorkspace().getId(),
+                inv.getWorkspace().getName(),
+                inv.getInviter().getFullname() != null ? inv.getInviter().getFullname() : inv.getInviter().getEmail(),
+                inv.getToken(),
+                inv.getStatus(),
+                inv.getExpiresAt(),
+                inv.getCreatedAt()
+        )).toList();
     }
 }

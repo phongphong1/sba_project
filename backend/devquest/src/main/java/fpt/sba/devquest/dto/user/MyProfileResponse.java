@@ -17,6 +17,7 @@ public record MyProfileResponse(UserPayload user, StatsPayload stats) {
             Long workspacesCount,
             Long tasksCompleted,
             Long totalComments,
+            Long invitationsCount,
             String activeSince
     ) {
     }

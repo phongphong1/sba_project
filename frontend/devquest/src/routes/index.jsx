@@ -6,11 +6,13 @@ import ForgotPasswordPage from '@/pages/ForgotPasswordPage'
 import LandingPage from '@/pages/LandingPage'
 import PlaceholderPage from '@/pages/PlaceholderPage'
 import VerifyPage from '@/pages/VerifyPage'
+import InviteAcceptPage from '@/pages/InviteAcceptPage'
 import WorkspaceEmptyPage from '@/pages/WorkspaceEmptyPage'
 import { useWorkspaceShell } from '@/contexts/WorkspaceShellContext'
 import ProtectedLayout from '@/routes/ProtectedLayout'
 import { Card } from '@/components/ui/card'
 import { octomLoadingCardClass } from '@/constants/uiStyles'
+import { AUTH_TOKEN_KEY } from '@/constants/auth'
 
 const TasksPage = lazy(() => import('@/pages/TasksPage'))
 const TimelinePage = lazy(() => import('@/pages/TimelinePage'))
@@ -125,15 +127,22 @@ function RedirectWorkspaceIndex() {
   return <Navigate to={`/w/${workspaceId}/dashboard`} replace />
 }
 
+function GuestOnlyRoute({ children }) {
+  const token = localStorage.getItem(AUTH_TOKEN_KEY)
+  if (token) return <Navigate to="/dashboard" replace />
+  return children
+}
+
 export default function AppRouter() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={<AuthPage />} />
-        <Route path="/signup" element={<AuthPage />} />
-        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/" element={<GuestOnlyRoute><LandingPage /></GuestOnlyRoute>} />
+        <Route path="/login" element={<GuestOnlyRoute><AuthPage /></GuestOnlyRoute>} />
+        <Route path="/signup" element={<GuestOnlyRoute><AuthPage /></GuestOnlyRoute>} />
+        <Route path="/forgot-password" element={<GuestOnlyRoute><ForgotPasswordPage /></GuestOnlyRoute>} />
         <Route path="/verify" element={<VerifyPage />} />
+        <Route path="/invite" element={<InviteAcceptPage />} />
         <Route element={<ProtectedLayout />}>
           <Route
             path="/profile"

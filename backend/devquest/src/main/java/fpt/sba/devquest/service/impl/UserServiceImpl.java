@@ -14,6 +14,7 @@ import fpt.sba.devquest.repository.BoardRepository;
 import fpt.sba.devquest.repository.CommentRepository;
 import fpt.sba.devquest.repository.TaskRepository;
 import fpt.sba.devquest.repository.UserRepository;
+import fpt.sba.devquest.repository.WorkspaceInvitationRepository;
 import fpt.sba.devquest.repository.WorkspaceMemberRepository;
 import fpt.sba.devquest.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -42,8 +43,9 @@ public class UserServiceImpl implements UserService {
     private final WorkspaceMemberRepository workspaceMemberRepository;
     private final TaskRepository taskRepository;
     private final CommentRepository commentRepository;
-        private final BoardRepository boardRepository;
-        private final PasswordEncoder passwordEncoder;
+    private final BoardRepository boardRepository;
+    private final WorkspaceInvitationRepository workspaceInvitationRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     public MyProfileResponse me() {
@@ -52,6 +54,7 @@ public class UserServiceImpl implements UserService {
         long workspacesCount = workspaceMemberRepository.countByUser_Id(user.getId());
         long tasksCompleted = taskRepository.countCompletedByAssigneeId(user.getId());
         long totalComments = commentRepository.countByUser_Id(user.getId());
+        long invitationsCount = workspaceInvitationRepository.findByEmailAndStatusOrderByCreatedAtDesc(user.getEmail(), "PENDING").size();
         String activeSince = user.getCreatedAt() == null ? "" : ACTIVE_SINCE_FORMATTER.format(user.getCreatedAt());
 
         MyProfileResponse.UserPayload userPayload = toUserPayload(user);
@@ -60,6 +63,7 @@ public class UserServiceImpl implements UserService {
                 workspacesCount,
                 tasksCompleted,
                 totalComments,
+                invitationsCount,
                 activeSince
         );
 

@@ -1,4 +1,4 @@
-import { Camera, CheckCircle2, MessageSquare, Users } from 'lucide-react'
+import { Camera, CheckCircle2, Mail, MessageSquare, Users } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -93,6 +93,16 @@ export default function ProfileOverviewCard({
             </div>
             <span className="text-lg font-semibold text-slate-900">
               {profileData.stats.totalComments}
+            </span>
+          </div>
+
+          <div className={`flex items-center justify-between ${octomMutedPanelClass}`}>
+            <div className="inline-flex items-center gap-2 text-sm text-slate-500">
+              <Mail className="h-4 w-4 text-[#5051F9]" />
+              Workspace Invitations
+            </div>
+            <span className="text-lg font-semibold text-slate-900">
+              {profileData.stats.invitationsCount}
             </span>
           </div>
         </div>

@@ -1,5 +1,6 @@
 import { Calendar, CheckCircle2, MessageSquare, Paperclip, X, Plus, Trash2 } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { toast } from 'sonner'
 import workspaceApi from '@/api/workspaceApi'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -14,36 +15,19 @@ import {
   octomPillBadgeClass,
 } from '@/constants/uiStyles'
 
-export default function TaskDetailDrawerContent({ task }) {
+export default function TaskDetailDrawerContent({ task, subtasks, onRefreshSubtasks, onDeleteTask }) {
   const taskNumericId = String(task.id).replace('tsk_', '')
 
-  const [localChecklist, setLocalChecklist] = useState(null)
   const [addingSubtask, setAddingSubtask] = useState(false)
   const [newSubtaskText, setNewSubtaskText] = useState('')
 
-  useEffect(() => {
-    let isMounted = true
-    workspaceApi.getSubtasks(taskNumericId)
-      .then((res) => {
-        if (isMounted) {
-          setLocalChecklist((res.data || []).map((i) => ({ ...i, done: !!i.done })))
-        }
-      })
-      .catch((err) => {
-        if (isMounted) {
-          setLocalChecklist([])
-        }
-      })
-    return () => { isMounted = false }
-  }, [taskNumericId])
-
   const handleToggleSubtask = async (item) => {
     const updatedDone = !item.done
-    setLocalChecklist(prev => prev.map(i => i.id === item.id ? { ...i, done: updatedDone } : i))
     try {
       await workspaceApi.updateSubtask(taskNumericId, item.id, { done: updatedDone })
+      await onRefreshSubtasks()
     } catch (err) {
-      setLocalChecklist(prev => prev.map(i => i.id === item.id ? { ...i, done: !updatedDone } : i))
+      toast.error('Unable to update subtask.')
     }
   }
 
@@ -52,31 +36,40 @@ export default function TaskDetailDrawerContent({ task }) {
       setAddingSubtask(false)
       return
     }
-    const tempId = Date.now()
+
     const text = newSubtaskText.trim()
     setNewSubtaskText('')
     setAddingSubtask(false)
 
-    setLocalChecklist((prev) => [...prev, { id: tempId, text, done: false }])
     try {
-      const res = await workspaceApi.createSubtask(taskNumericId, { text })
-      setLocalChecklist((prev) => prev.map((i) => (i.id === tempId ? { ...res.data, done: !!res.data.done } : i)))
+      await workspaceApi.createSubtask(taskNumericId, { text })
+      await onRefreshSubtasks()
     } catch (err) {
-      setLocalChecklist((prev) => prev.filter((i) => i.id !== tempId))
+      toast.error('Unable to add subtask.')
+    }
+  }
+
+  const handleEditSubtask = async (itemId, text) => {
+    if (!text.trim()) return
+
+    try {
+      await workspaceApi.updateSubtask(taskNumericId, itemId, { text: text.trim() })
+      await onRefreshSubtasks()
+    } catch (err) {
+      toast.error('Unable to edit subtask.')
     }
   }
 
   const handleDeleteSubtask = async (itemId) => {
-    const backup = [...(localChecklist ?? [])]
-    setLocalChecklist((prev) => prev.filter((i) => i.id !== itemId))
     try {
       await workspaceApi.deleteSubtask(taskNumericId, itemId)
+      await onRefreshSubtasks()
     } catch (err) {
-      setLocalChecklist(backup)
+      toast.error('Unable to delete subtask.')
     }
   }
 
-  const checklist = localChecklist ?? []
+  const checklist = Array.isArray(subtasks) ? subtasks : []
   const completedChecklistItems = checklist.filter((item) => item.done).length
   const checklistProgress = checklist.length
     ? Math.round((completedChecklistItems / checklist.length) * 100)
@@ -98,17 +91,29 @@ export default function TaskDetailDrawerContent({ task }) {
             </h2>
           </div>
 
-          <DrawerClose asChild>
+          <div className="flex items-center gap-2">
             <Button
               type="button"
-              variant="secondary"
+              variant="ghost"
               size="icon-lg"
-              className="h-10 w-10 rounded-[18px] bg-slate-100 text-slate-500 shadow-none hover:bg-slate-200 hover:text-slate-800"
-              aria-label="Close task detail"
+              className="h-10 w-10 rounded-[18px] text-slate-400 hover:bg-red-50 hover:text-red-500 shadow-none"
+              onClick={onDeleteTask}
+              aria-label="Delete task"
             >
-              <X className="h-4 w-4" />
+              <Trash2 className="h-4 w-4" />
             </Button>
-          </DrawerClose>
+            <DrawerClose asChild>
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon-lg"
+                className="h-10 w-10 rounded-[18px] bg-slate-100 text-slate-500 shadow-none hover:bg-slate-200 hover:text-slate-800"
+                aria-label="Close task detail"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </DrawerClose>
+          </div>
         </div>
 
         <div className="mt-5 flex flex-wrap items-center gap-3 text-sm text-slate-500">
@@ -187,8 +192,10 @@ export default function TaskDetailDrawerContent({ task }) {
             </div>
 
             <div className="mt-5 space-y-3">
-              {localChecklist === null ? (
-                <p className="text-sm text-slate-400 italic">Loading...</p>
+              {subtasks === null ? (
+                <p className="text-sm text-slate-400 italic">Loading checklist...</p>
+              ) : checklist.length === 0 ? (
+                <p className="text-sm text-slate-400 italic">No checklist items yet.</p>
               ) : checklist.map((item) => (
                 <div key={item.id} className="group relative">
                   <label

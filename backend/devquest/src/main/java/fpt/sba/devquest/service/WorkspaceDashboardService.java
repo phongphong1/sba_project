@@ -11,6 +11,9 @@ import fpt.sba.devquest.dto.workspace.WorkspaceDetailResponse;
 import fpt.sba.devquest.dto.workspace.WorkspaceScheduleItemResponse;
 import fpt.sba.devquest.dto.workspace.WorkspaceTaskSummaryResponse;
 import fpt.sba.devquest.dto.workspace.WorkspaceTimelineResponse;
+import fpt.sba.devquest.dto.workspace.InviteMembersRequest;
+import fpt.sba.devquest.dto.workspace.InvitationAcceptResponse;
+import fpt.sba.devquest.dto.workspace.UserInvitationResponse;
 
 import java.util.List;
 
@@ -33,4 +36,10 @@ public interface WorkspaceDashboardService {
     WorkspaceTimelineResponse getTimeline(String workspaceId);
 
     List<WeeklyOutputPointResponse> getWeeklyOutput(String workspaceId);
+
+    void inviteMembers(String workspaceId, InviteMembersRequest request);
+
+    InvitationAcceptResponse acceptInvitation(String token);
+
+    List<UserInvitationResponse> getUserInvitations();
 }

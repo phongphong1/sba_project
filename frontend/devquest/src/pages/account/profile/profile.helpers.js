@@ -1,6 +1,7 @@
 export const profileTabs = [
   { id: 'general', label: 'General' },
   { id: 'workspaces', label: 'Workspaces' },
+  { id: 'invitations', label: 'Invitations' },
   { id: 'security', label: 'Security' },
 ]
 
@@ -84,6 +85,7 @@ export function createEmptyProfileData() {
       workspacesCount: 0,
       tasksCompleted: 0,
       totalComments: 0,
+      invitationsCount: 0,
       activeSince: 'Unavailable',
     },
   }

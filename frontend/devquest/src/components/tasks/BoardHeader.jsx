@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import InviteMembersDialog from '@/components/tasks/InviteMembersDialog'
 import {
   Drawer,
   DrawerContent,
@@ -43,8 +44,10 @@ export default function BoardHeader({
   columnCount,
   taskCount,
   canAddColumn = true,
+  workspaceId,
 }) {
   const [activeDrawer, setActiveDrawer] = useState(null)
+  const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false)
   const isBoardDrawerOpen = activeDrawer === 'board'
   const isMembersDrawerOpen = activeDrawer === 'members'
 
@@ -236,7 +239,11 @@ export default function BoardHeader({
                   <p className="text-sm font-semibold text-slate-900">{workspaceMembers.length} members</p>
                   <p className="mt-1 text-sm text-slate-500">Keep ownership visible across all boards.</p>
                 </div>
-                <Button type="button" className={`h-11 ${octomPrimaryButtonClass}`}>
+                <Button
+                  type="button"
+                  className={`h-11 ${octomPrimaryButtonClass}`}
+                  onClick={() => setIsInviteDialogOpen(true)}
+                >
                   <UserPlus className="h-4 w-4" />
                   Add member
                 </Button>
@@ -277,6 +284,13 @@ export default function BoardHeader({
           ) : null}
         </DrawerContent>
       </Drawer>
+
+
+      <InviteMembersDialog
+        open={isInviteDialogOpen}
+        onClose={() => setIsInviteDialogOpen(false)}
+        workspaceId={workspaceId}
+      />
     </>
   )
 }

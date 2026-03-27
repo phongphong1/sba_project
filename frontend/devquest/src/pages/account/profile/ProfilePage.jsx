@@ -24,6 +24,7 @@ import ProfileGeneralSection from './sections/ProfileGeneralSection'
 import ProfileOverviewCard from './sections/ProfileOverviewCard'
 import ProfileSecuritySection from './sections/ProfileSecuritySection'
 import ProfileWorkspacesSection from './sections/ProfileWorkspacesSection'
+import ProfileInvitationsSection from './sections/ProfileInvitationsSection'
 
 export default function ProfilePage() {
   const navigate = useNavigate()
@@ -34,6 +35,8 @@ export default function ProfilePage() {
     handleChangePassword,
     handleGetWorkspaces,
     handleCreateWorkspace,
+    handleGetInvitations,
+    handleAcceptInvitation,
   } = useUserActions()
   const [activeTab, setActiveTab] = useState('general')
   const [profileData, setProfileData] = useState(createEmptyProfileData)
@@ -49,6 +52,10 @@ export default function ProfilePage() {
   const [isLoadingWorkspaces, setIsLoadingWorkspaces] = useState(false)
   const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false)
   const [hasLoadedWorkspaceList, setHasLoadedWorkspaceList] = useState(false)
+  const [invitationList, setInvitationList] = useState([])
+  const [isLoadingInvitations, setIsLoadingInvitations] = useState(false)
+  const [isAcceptingInvitation, setIsAcceptingInvitation] = useState(false)
+  const [hasLoadedInvitationList, setHasLoadedInvitationList] = useState(false)
   const [hasProfileError, setHasProfileError] = useState(false)
 
   const roleLabel = useMemo(
@@ -129,6 +136,43 @@ export default function ProfilePage() {
     }
   }, [activeTab, handleGetWorkspaces, hasLoadedWorkspaceList])
 
+  useEffect(() => {
+    let isMounted = true
+
+    if (activeTab !== 'invitations' || hasLoadedInvitationList) {
+      return () => {
+        isMounted = false
+      }
+    }
+
+    const loadInvitations = async () => {
+      setIsLoadingInvitations(true)
+
+      try {
+        const result = await handleGetInvitations()
+
+        if (!isMounted) return
+
+        setInvitationList(result.data ?? [])
+      } catch {
+        if (!isMounted) return
+
+        setInvitationList([])
+      } finally {
+        if (isMounted) {
+          setIsLoadingInvitations(false)
+          setHasLoadedInvitationList(true)
+        }
+      }
+    }
+
+    void loadInvitations()
+
+    return () => {
+      isMounted = false
+    }
+  }, [activeTab, handleGetInvitations, hasLoadedInvitationList])
+
   const handleProfileFieldChange = (field, value) => {
     setProfileForm((current) => ({
       ...current,
@@ -174,6 +218,10 @@ export default function ProfilePage() {
     setHasLoadedWorkspaceList(false)
   }
 
+  const handleRefreshInvitations = () => {
+    setHasLoadedInvitationList(false)
+  }
+
   const handleCreateWorkspaceSubmit = async (values) => {
     setIsCreatingWorkspace(true)
 
@@ -191,6 +239,24 @@ export default function ProfilePage() {
       throw error
     } finally {
       setIsCreatingWorkspace(false)
+    }
+  }
+
+  const handleAcceptInviteSubmit = async (token) => {
+    setIsAcceptingInvitation(true)
+
+    try {
+      const result = await handleAcceptInvitation(token)
+      toast.success(result.message)
+
+      // Refresh both lists since workspace list likely changed
+      setHasLoadedInvitationList(false)
+      setHasLoadedWorkspaceList(false)
+      await refreshWorkspaces()
+    } catch (error) {
+      toast.error(getRequestErrorMessage(error, 'Unable to accept invitation.'))
+    } finally {
+      setIsAcceptingInvitation(false)
     }
   }
 
@@ -356,6 +422,16 @@ export default function ProfilePage() {
             onOpenBoard={handleOpenBoard}
             onRefresh={handleRefreshWorkspaces}
             onCreateWorkspace={handleCreateWorkspaceSubmit}
+          />
+        ) : null}
+
+        {activeTab === 'invitations' ? (
+          <ProfileInvitationsSection
+            invitations={invitationList}
+            isLoading={isLoadingInvitations}
+            isAccepting={isAcceptingInvitation}
+            onAccept={handleAcceptInviteSubmit}
+            onRefresh={handleRefreshInvitations}
           />
         ) : null}
       </Card>

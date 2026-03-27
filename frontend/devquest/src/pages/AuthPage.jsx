@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowRight, Github, Lock, Mail, Sparkles, User } from 'lucide-react'
+import { ArrowRight, Lock, Mail, Sparkles, User } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { z } from 'zod'
@@ -62,17 +62,7 @@ const resolveAuthNotice = (state) => {
 const resolveMessage = (payload, fallbackMessage) =>
   payload?.message ?? payload?.data?.message ?? fallbackMessage
 
-function SocialButton({ children }) {
-  return (
-    <Button
-      type="button"
-      variant="outline"
-      className="h-14 rounded-[20px] border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-none hover:bg-slate-50"
-    >
-      {children}
-    </Button>
-  )
-}
+
 
 function AuthIllustration() {
   return (
@@ -297,31 +287,7 @@ function AuthForm({ mode, onSwitch, onSuccess }) {
         </motion.div>
       </motion.div>
 
-      <div className="mt-6">
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-slate-200" />
-          </div>
-          <div className="relative flex justify-center">
-            <span className="bg-white px-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-              or continue with
-            </span>
-          </div>
-        </div>
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-2">
-          <SocialButton>
-            <svg viewBox="0 0 24 24" className="h-4 w-4">
-              <path fill="#EA4335" d="M12 10.2v3.9h5.4c-.2 1.3-1.5 3.9-5.4 3.9-3.2 0-5.8-2.7-5.8-6s2.6-6 5.8-6c1.8 0 3 .8 3.7 1.4l2.5-2.4C16.6 3.5 14.5 2.6 12 2.6 6.9 2.6 2.8 6.8 2.8 12s4.1 9.4 9.2 9.4c5.3 0 8.8-3.7 8.8-9 0-.6-.1-1.1-.1-1.5H12Z" />
-            </svg>
-            Google
-          </SocialButton>
-          <SocialButton>
-            <Github className="h-4 w-4" />
-            GitHub
-          </SocialButton>
-        </div>
-      </div>
 
       <div className="mt-8 text-center text-sm text-slate-500">
         {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}

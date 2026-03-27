@@ -45,6 +45,8 @@ export default function TasksPage() {
     const [addColumnError, setAddColumnError] = useState('')
     const [isCreateTaskDialogOpen, setIsCreateTaskDialogOpen] = useState(false)
     const isCreateTaskDrawerOpeningRef = useRef(false)
+    const [isDeleteTaskDialogOpen, setIsDeleteTaskDialogOpen] = useState(false)
+    const [isDeletingTask, setIsDeletingTask] = useState(false)
     const [createTaskForm, setCreateTaskForm] = useState({
         title: '',
         description: '',
@@ -474,9 +476,39 @@ export default function TasksPage() {
             return
         }
 
+        setSearchQuery('')
+        setActivePriority('ALL')
+        setSelectedTaskId(null)
+        resetCreateTaskForm()
+        refreshBoard()
+
         setCreateBoardName('')
         setCreateBoardError('')
         setIsCreateBoardDialogOpen(true)
+    }
+
+    const handleDeleteTask = async (taskId) => {
+        const idToDelete = taskId || selectedTaskId
+        if (!idToDelete) return
+        setIsDeleteTaskDialogOpen(true)
+    }
+
+    const handleConfirmDeleteTask = async () => {
+        if (!selectedTaskId || isDeletingTask) return
+
+        setIsDeletingTask(true)
+        try {
+            const taskNumericId = String(selectedTaskId).replace('tsk_', '')
+            await workspaceApi.deleteTask(taskNumericId)
+            setIsDeleteTaskDialogOpen(false)
+            setSelectedTaskId(null)
+            await refreshBoard()
+            toast.success('Task deleted successfully')
+        } catch (err) {
+            toast.error('Unable to delete task.')
+        } finally {
+            setIsDeletingTask(false)
+        }
     }
 
     const handleConfirmCreateBoard = async () => {
@@ -567,6 +599,7 @@ export default function TasksPage() {
                     onAddColumn={handleOpenAddColumnDialog}
                     onBoardSelect={handleBoardSelect}
                     onCreateBoard={handleOpenCreateBoardDialog}
+                    workspaceId={workspaceId}
                     columnCount={boardView.columns.length}
                     taskCount={boardView.tasks.length}
                     canAddColumn={hasResolvedBoard}
@@ -677,9 +710,21 @@ export default function TasksPage() {
                         void handleConfirmEditColumn()
                     },
                 }}
+                deleteTask={{
+                    open: isDeleteTaskDialogOpen,
+                    setOpen: setIsDeleteTaskDialogOpen,
+                    loading: isDeletingTask,
+                    onSubmit: () => {
+                        void handleConfirmDeleteTask()
+                    },
+                }}
             />
-
-            <TaskDetailModal task={selectedTask} onClose={() => setSelectedTaskId(null)} />
+ 
+            <TaskDetailModal
+                task={selectedTask}
+                onClose={() => setSelectedTaskId(null)}
+                onDeleteTask={handleDeleteTask}
+            />
         </>
     )
 }

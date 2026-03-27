@@ -1,5 +1,8 @@
 package fpt.sba.devquest.controller;
 
+import fpt.sba.devquest.dto.workspace.InviteMembersRequest;
+import fpt.sba.devquest.dto.workspace.InvitationAcceptResponse;
+import fpt.sba.devquest.dto.workspace.UserInvitationResponse;
 import fpt.sba.devquest.dto.workspace.WeeklyOutputPointResponse;
 import fpt.sba.devquest.dto.column.ColumnResponse;
 import fpt.sba.devquest.dto.column.CreateColumnRequest;
@@ -18,10 +21,12 @@ import fpt.sba.devquest.service.WorkspaceDashboardService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -89,5 +94,24 @@ public class WorkspaceController {
     @GetMapping("/{workspaceId}/analytics/weekly-output")
     public List<WeeklyOutputPointResponse> getWeeklyOutput(@PathVariable String workspaceId) {
         return workspaceDashboardService.getWeeklyOutput(workspaceId);
+    }
+
+    @PostMapping("/{workspaceId}/invitations")
+    public org.springframework.http.ResponseEntity<Void> inviteMembers(
+            @PathVariable String workspaceId,
+            @Valid @RequestBody InviteMembersRequest request
+    ) {
+        workspaceDashboardService.inviteMembers(workspaceId, request);
+        return org.springframework.http.ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/invitations/accept")
+    public InvitationAcceptResponse acceptInvitation(@RequestParam String token) {
+        return workspaceDashboardService.acceptInvitation(token);
+    }
+
+    @GetMapping("/invitations")
+    public List<UserInvitationResponse> getInvitations() {
+        return workspaceDashboardService.getUserInvitations();
     }
 }

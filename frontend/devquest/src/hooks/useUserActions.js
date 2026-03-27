@@ -60,6 +60,23 @@ export function useUserActions() {
           message: resolveMessage(data, 'Workspace created successfully.'),
         }
       },
+      handleGetInvitations: async () => {
+        const data = await workspaceApi.getInvitations()
+
+        return {
+          success: true,
+          data,
+        }
+      },
+      handleAcceptInvitation: async (token) => {
+        const data = await workspaceApi.acceptInvitation(token)
+
+        return {
+          success: true,
+          data,
+          message: resolveMessage(data, 'Invitation accepted successfully.'),
+        }
+      },
     }),
     [],
   )

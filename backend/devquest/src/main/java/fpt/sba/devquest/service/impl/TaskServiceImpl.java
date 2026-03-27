@@ -190,6 +190,7 @@ public class TaskServiceImpl implements TaskService {
         subtask.setContent(request.text());
         subtask.setIsCompleted(false);
         SubTask saved = subtaskRepository.save(subtask);
+        syncTaskProgress(task);
 
         return new fpt.sba.devquest.dto.task.SubtaskResponse(saved.getId(), taskId, saved.getContent(), Boolean.TRUE.equals(saved.getIsCompleted()));
     }
@@ -212,6 +213,7 @@ public class TaskServiceImpl implements TaskService {
             subtask.setIsCompleted(request.done());
         }
         SubTask saved = subtaskRepository.save(subtask);
+        syncTaskProgress(task);
         return new fpt.sba.devquest.dto.task.SubtaskResponse(saved.getId(), taskId, saved.getContent(), Boolean.TRUE.equals(saved.getIsCompleted()));
     }
 
@@ -226,6 +228,19 @@ public class TaskServiceImpl implements TaskService {
         SubTask subtask = subtaskRepository.findByIdAndTask_Id(subtaskId, taskId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Subtask not found in task."));
         subtaskRepository.delete(subtask);
+        syncTaskProgress(task);
+    }
+
+    private void syncTaskProgress(Task task) {
+        long totalItems = subtaskRepository.countByTask_Id(task.getId());
+        if (totalItems == 0) {
+            task.setProgress(0);
+        } else {
+            long completedItems = subtaskRepository.countByTask_IdAndIsCompletedTrue(task.getId());
+            int progress = (int) Math.round(((double) completedItems / totalItems) * 100);
+            task.setProgress(progress);
+        }
+        taskRepository.save(task);
     }
 
     private User resolveAssignee(Long assigneeId) {

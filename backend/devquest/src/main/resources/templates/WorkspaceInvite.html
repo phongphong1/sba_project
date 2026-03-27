@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>You're invited to DevQuest</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #F8F9FB;
+            margin: 0;
+            padding: 0;
+            -webkit-font-smoothing: antialiased;
+        }
+        .container {
+            max-width: 600px;
+            margin: 40px auto;
+            background-color: #ffffff;
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+        .header {
+            padding: 40px 0 20px 0;
+            text-align: center;
+        }
+        .content {
+            padding: 0 40px 40px 40px;
+            text-align: center;
+            color: #334155;
+        }
+        .title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            color: #0F172A;
+        }
+        .description {
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 32px;
+        }
+        .button {
+            display: inline-block;
+            padding: 16px 32px;
+            background-color: #5051F9;
+            color: #ffffff !important;
+            text-decoration: none;
+            border-radius: 16px;
+            font-weight: 600;
+            font-size: 16px;
+        }
+        .workspace-badge {
+            display: inline-block;
+            padding: 6px 16px;
+            background-color: #EEF2FF;
+            color: #5051F9;
+            border-radius: 999px;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 24px;
+        }
+        .footer {
+            padding: 24px;
+            background-color: #F1F5F9;
+            text-align: center;
+            font-size: 12px;
+            color: #64748B;
+        }
+        .magic-link-raw {
+            word-break: break-all;
+            font-size: 12px;
+            color: #94A3B8;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <!-- Logo -->
+    <div class="header">
+        <h1 style="color: #5051F9; margin: 0; font-size: 28px; letter-spacing: -1px;">DEVQUEST.</h1>
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+        <div class="workspace-badge" th:text="${workspaceName}">My Workspace</div>
+        <h2 class="title">You're invited to collaborate</h2>
+        <p class="description">
+            <span th:text="${inviterName}" style="font-weight: 600;">Someone</span> has invited you to join
+            <strong th:text="${workspaceName}">My Workspace</strong> on <strong>DevQuest</strong>.<br/><br/>
+            Click the button below to accept the invitation and start collaborating.
+        </p>
+
+        <a th:href="${inviteLink}" class="button">Accept Invitation</a>
+
+        <p style="margin-top: 32px; font-size: 14px; color: #64748B;">
+            This invitation expires in <span th:text="${expiryTime}">72</span> hours.<br/>
+            If you didn't expect this email, you can safely ignore it.
+        </p>
+
+        <div class="content" style="padding-top: 0;">
+            <p style="font-size: 12px; color: #94A3B8; margin-bottom: 8px;">If the button doesn't work, copy this link:</p>
+            <div class="magic-link-raw" th:text="${inviteLink}">https://devquest.com/invite?token=...</div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <p>&copy; 2026 DevQuest Team. Built for modern builders.</p>
+        <p>You received this because someone invited you to a DevQuest workspace.</p>
+    </div>
+</div>
+</body>
+</html>

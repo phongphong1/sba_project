@@ -35,7 +35,12 @@ const workspaceApi = {
     const url = '/tasks'
     return axiosClient.post(url, payload)
   },
-
+ 
+  deleteTask(taskId) {
+    const url = `/tasks/${taskId}`
+    return axiosClient.delete(url)
+  },
+ 
   getSubtasks(taskId, config = {}) {
     const url = `/tasks/${taskId}/checklist`
     return axiosClient.get(url, config)
@@ -78,6 +83,21 @@ const workspaceApi = {
 
   getTimeline(workspaceId) {
     const url = `/workspaces/${workspaceId}/timeline`
+    return axiosClient.get(url)
+  },
+
+  inviteMembers(workspaceId, emails) {
+    const url = `/workspaces/${workspaceId}/invitations`
+    return axiosClient.post(url, { emails })
+  },
+
+  acceptInvitation(token) {
+    const url = `/workspaces/invitations/accept?token=${token}`
+    return axiosClient.get(url)
+  },
+
+  getInvitations() {
+    const url = '/workspaces/invitations'
     return axiosClient.get(url)
   },
 }

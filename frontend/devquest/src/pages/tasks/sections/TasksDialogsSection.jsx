@@ -1,5 +1,5 @@
 import { format, parseISO } from 'date-fns'
-import { CalendarIcon, Clock3, Palette } from 'lucide-react'
+import { CalendarIcon, Clock3, Palette, Trash2 } from 'lucide-react'
 import { Sketch } from '@uiw/react-color'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
@@ -136,6 +136,7 @@ export default function TasksDialogsSection({
     addColumn,
     createTask,
     editColumn,
+    deleteTask,
 }) {
     return (
         <>
@@ -452,6 +453,40 @@ export default function TasksDialogsSection({
                             disabled={editColumn.loading}
                         >
                             {editColumn.loading ? 'Saving...' : 'Save changes'}
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+ 
+            <Dialog open={deleteTask.open} onOpenChange={deleteTask.setOpen}>
+                <DialogContent className="max-w-md rounded-[24px] border-0 bg-white p-0 shadow-2xl">
+                    <DialogHeader className="px-6 pt-6 text-center sm:text-center">
+                        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-50 text-red-600">
+                            <Trash2 className="h-6 w-6" />
+                        </div>
+                        <DialogTitle className="text-xl font-bold text-slate-900">Delete task?</DialogTitle>
+                        <DialogDescription className="text-slate-500">
+                            This action cannot be undone. This task and all its checklists will be permanently removed from your board.
+                        </DialogDescription>
+                    </DialogHeader>
+ 
+                    <div className="mt-4 flex flex-col-reverse gap-3 rounded-b-[24px] border-t border-slate-200/80 bg-slate-50 px-6 py-5 sm:flex-row sm:justify-end">
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            className={octomSecondaryButtonClass}
+                            onClick={() => deleteTask.setOpen(false)}
+                            disabled={deleteTask.loading}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="button"
+                            className="h-11 rounded-[18px] bg-red-600 px-8 font-bold text-white shadow-lg shadow-red-200 hover:bg-red-700 active:scale-95 disabled:opacity-50 transition-all border-0"
+                            onClick={deleteTask.onSubmit}
+                            disabled={deleteTask.loading}
+                        >
+                            {deleteTask.loading ? 'Deleting...' : 'Delete permanently'}
                         </Button>
                     </div>
                 </DialogContent>
