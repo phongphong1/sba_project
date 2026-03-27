@@ -45,8 +45,13 @@ export default function TasksPage() {
     const [addColumnError, setAddColumnError] = useState('')
     const [isCreateTaskDialogOpen, setIsCreateTaskDialogOpen] = useState(false)
     const isCreateTaskDrawerOpeningRef = useRef(false)
+    const [taskFormMode, setTaskFormMode] = useState('CREATE')
+    const [editingTaskId, setEditingTaskId] = useState(null)
     const [isDeleteTaskDialogOpen, setIsDeleteTaskDialogOpen] = useState(false)
     const [isDeletingTask, setIsDeletingTask] = useState(false)
+    const [isDeleteColumnDialogOpen, setIsDeleteColumnDialogOpen] = useState(false)
+    const [isDeletingColumn, setIsDeletingColumn] = useState(false)
+    const [targetDeleteColumnId, setTargetDeleteColumnId] = useState('')
     const [createTaskForm, setCreateTaskForm] = useState({
         title: '',
         description: '',
@@ -238,6 +243,33 @@ export default function TasksPage() {
         }, 200)
     }
 
+    const handleOpenEditTaskDialog = (task) => {
+        if (!task || isCreatingTask) return
+        
+        isCreateTaskDrawerOpeningRef.current = true
+        setTaskFormMode('EDIT')
+        setEditingTaskId(task.id)
+        setTargetCreateTaskColumnId(String(task.columnId))
+        
+        setCreateTaskForm({
+            title: task.title || '',
+            description: task.description || '',
+            priority: task.priority || 'MEDIUM',
+            estimateHours: task.estimateHours || '',
+            color: task.color || '#5051F9',
+            startDate: task.startDate || '',
+            dueDate: task.dueDate || '',
+            assigneeId: task.assigneeId ? String(task.assigneeId) : 'UNASSIGNED',
+        })
+        
+        setCreateTaskError('')
+        setIsCreateTaskDialogOpen(true)
+
+        window.setTimeout(() => {
+            isCreateTaskDrawerOpeningRef.current = false
+        }, 200)
+    }
+
     const handleConfirmCreateTask = async () => {
         const normalizedTitle = createTaskForm.title.trim()
         const normalizedBoardId = /^\d+$/.test(String(boardData?.id ?? ''))
@@ -294,14 +326,21 @@ export default function TasksPage() {
                     : undefined,
             }
 
-            await workspaceApi.createTask(payload)
+            if (taskFormMode === 'CREATE') {
+                await workspaceApi.createTask(payload)
+                toast.success('Task created successfully.')
+            } else {
+                await workspaceApi.updateTask(editingTaskId, payload)
+                toast.success('Task updated successfully.')
+            }
 
             await refreshBoard()
             setIsCreateTaskDialogOpen(false)
             resetCreateTaskForm()
             setCreateTaskError('')
             setTargetCreateTaskColumnId('')
-            toast.success('Task created successfully.')
+            setEditingTaskId(null)
+            setTaskFormMode('CREATE')
         } catch (error) {
             setCreateTaskError(error?.response?.data?.message ?? error?.message ?? 'Unable to create task.')
         } finally {
@@ -365,6 +404,28 @@ export default function TasksPage() {
 
         setPreferredBoard(workspaceId, nextBoardId)
         navigate(`/w/${workspaceId}/boards/${nextBoardId}`)
+    }
+
+    const handleOpenDeleteColumnDialog = (columnId) => {
+        setTargetDeleteColumnId(String(columnId))
+        setIsDeleteColumnDialogOpen(true)
+    }
+
+    const handleConfirmDeleteColumn = async () => {
+        if (!targetDeleteColumnId || isDeletingColumn) return
+
+        setIsDeletingColumn(true)
+        try {
+            await workspaceApi.deleteColumn(targetDeleteColumnId)
+            setIsDeleteColumnDialogOpen(false)
+            setTargetDeleteColumnId('')
+            await refreshBoard()
+            toast.success('Column deleted successfully.')
+        } catch (error) {
+            toast.error(error?.response?.data?.message ?? error?.message ?? 'Unable to delete column.')
+        } finally {
+            setIsDeletingColumn(false)
+        }
     }
 
     const handleColumnsChange = (newColumns) => {
@@ -621,6 +682,7 @@ export default function TasksPage() {
                     onCreateTask={handleOpenCreateTaskDialog}
                     onEditColumn={handleOpenEditColumnDialog}
                     onTaskSelect={setSelectedTaskId}
+                    onDeleteColumn={handleOpenDeleteColumnDialog}
                 />
             </div>
 
@@ -669,8 +731,11 @@ export default function TasksPage() {
                             setCreateTaskError('')
                             setTargetCreateTaskColumnId('')
                             resetCreateTaskForm()
+                            setEditingTaskId(null)
+                            setTaskFormMode('CREATE')
                         }
                     },
+                    mode: taskFormMode,
                     form: createTaskForm,
                     onFieldChange: (field, value) => {
                         setCreateTaskForm((current) => ({
@@ -718,12 +783,21 @@ export default function TasksPage() {
                         void handleConfirmDeleteTask()
                     },
                 }}
+                deleteColumn={{
+                    open: isDeleteColumnDialogOpen,
+                    setOpen: setIsDeleteColumnDialogOpen,
+                    loading: isDeletingColumn,
+                    onSubmit: () => {
+                        void handleConfirmDeleteColumn()
+                    },
+                }}
             />
  
             <TaskDetailModal
                 task={selectedTask}
                 onClose={() => setSelectedTaskId(null)}
                 onDeleteTask={handleDeleteTask}
+                onEditTask={handleOpenEditTaskDialog}
             />
         </>
     )

@@ -1,4 +1,4 @@
-import { Calendar, CheckCircle2, MessageSquare, Paperclip, X, Plus, Trash2 } from 'lucide-react'
+import { Calendar, CheckCircle2, MessageSquare, Paperclip, X, Plus, Trash2, Pencil } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import workspaceApi from '@/api/workspaceApi'
@@ -15,7 +15,14 @@ import {
   octomPillBadgeClass,
 } from '@/constants/uiStyles'
 
-export default function TaskDetailDrawerContent({ task, subtasks, onRefreshSubtasks, onDeleteTask }) {
+const priorityBadgeMap = {
+  URGENT: 'bg-red-500 text-white font-bold shadow-sm shadow-red-200 animate-pulse',
+  HIGH: 'bg-rose-100 text-rose-600',
+  MEDIUM: 'bg-amber-100 text-amber-600',
+  LOW: 'bg-emerald-100 text-emerald-600',
+}
+
+export default function TaskDetailDrawerContent({ task, subtasks, onRefreshSubtasks, onDeleteTask, onEditTask }) {
   const taskNumericId = String(task.id).replace('tsk_', '')
 
   const [addingSubtask, setAddingSubtask] = useState(false)
@@ -96,6 +103,16 @@ export default function TaskDetailDrawerContent({ task, subtasks, onRefreshSubta
               type="button"
               variant="ghost"
               size="icon-lg"
+              className="h-10 w-10 rounded-[18px] text-slate-400 hover:bg-slate-100 hover:text-slate-700 shadow-none"
+              onClick={() => onEditTask(task)}
+              aria-label="Edit task"
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-lg"
               className="h-10 w-10 rounded-[18px] text-slate-400 hover:bg-red-50 hover:text-red-500 shadow-none"
               onClick={onDeleteTask}
               aria-label="Delete task"
@@ -117,7 +134,7 @@ export default function TaskDetailDrawerContent({ task, subtasks, onRefreshSubta
         </div>
 
         <div className="mt-5 flex flex-wrap items-center gap-3 text-sm text-slate-500">
-          <Badge className={`${octomPillBadgeClass} bg-indigo-100 font-semibold text-indigo-700`}>
+          <Badge className={`${octomPillBadgeClass} ${priorityBadgeMap[task.priority] || 'bg-indigo-100 text-indigo-700'}`}>
             {task.priority}
           </Badge>
           <span className="inline-flex items-center gap-1.5">

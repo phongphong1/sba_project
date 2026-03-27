@@ -9,7 +9,7 @@ import { octomDrawerContentClass, octomLoadingCardClass } from '@/constants/uiSt
 
 const TaskDetailDrawerContent = lazy(() => import('@/components/tasks/TaskDetailDrawerContent'))
 
-export default function TaskDetailModal({ task, onClose, onDeleteTask }) {
+export default function TaskDetailModal({ task, onClose, onDeleteTask, onEditTask }) {
   const [subtasks, setSubtasks] = useState(null)
   const taskNumericId = task ? String(task.id).replace('tsk_', '') : null
 
@@ -53,6 +53,7 @@ export default function TaskDetailModal({ task, onClose, onDeleteTask }) {
                 subtasks={subtasks}
                 onRefreshSubtasks={fetchSubtasks}
                 onDeleteTask={onDeleteTask}
+                onEditTask={onEditTask}
               />
             )}
           </Suspense>

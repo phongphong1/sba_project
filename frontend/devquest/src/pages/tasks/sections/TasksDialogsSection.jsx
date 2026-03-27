@@ -1,4 +1,4 @@
-import { format, parseISO } from 'date-fns'
+import { format, parseISO, isValid } from 'date-fns'
 import { CalendarIcon, Clock3, Palette, Trash2 } from 'lucide-react'
 import { Sketch } from '@uiw/react-color'
 import { Button } from '@/components/ui/button'
@@ -85,7 +85,7 @@ function DateTimePickerField({
                             !value ? 'text-slate-400' : 'text-slate-700',
                         )}
                     >
-                        {value ? format(selectedDate, 'PPP p') : 'Select date and time'}
+                        {value && isValid(selectedDate) ? format(selectedDate, 'PPP p') : 'Select date and time'}
                         <CalendarIcon className="h-4 w-4 text-slate-400" />
                     </Button>
                 </PopoverTrigger>
@@ -137,6 +137,7 @@ export default function TasksDialogsSection({
     createTask,
     editColumn,
     deleteTask,
+    deleteColumn,
 }) {
     return (
         <>
@@ -237,12 +238,14 @@ export default function TasksDialogsSection({
 
             <Drawer open={createTask.open} onOpenChange={createTask.setOpen} direction="right">
                 <DrawerContent className="data-[vaul-drawer-direction=right]:!w-[min(96vw,1100px)] data-[vaul-drawer-direction=right]:!max-w-[1100px] data-[vaul-drawer-direction=right]:sm:!max-w-[1100px]">
-                    <DrawerHeader className="border-b border-slate-200 px-6 py-5 text-left">
-                        <DrawerTitle>Create task</DrawerTitle>
-                        <DrawerDescription>
-                            Fill in task details before adding this card to the selected column.
-                        </DrawerDescription>
-                    </DrawerHeader>
+                <DrawerHeader className="border-b border-slate-200 px-6 py-5 text-left">
+                    <DrawerTitle>{createTask.mode === 'EDIT' ? 'Edit task' : 'Create task'}</DrawerTitle>
+                    <DrawerDescription>
+                        {createTask.mode === 'EDIT'
+                            ? 'Update the task details below. Changes will be reflected across the board.'
+                            : 'Fill in task details before adding this card to the selected column.'}
+                    </DrawerDescription>
+                </DrawerHeader>
 
                     <div className="space-y-4 overflow-y-auto px-6 py-5">
                         <div>
@@ -284,10 +287,11 @@ export default function TasksDialogsSection({
                                     <SelectTrigger className={`w-full ${octomInputClass}`}>
                                         <SelectValue placeholder="Select priority" />
                                     </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="HIGH">High</SelectItem>
-                                        <SelectItem value="MEDIUM">Medium</SelectItem>
-                                        <SelectItem value="LOW">Low</SelectItem>
+                                    <SelectContent className="rounded-[18px]">
+                                        <SelectItem value="URGENT" className="rounded-[14px] text-red-600 font-bold focus:text-red-700">Urgent</SelectItem>
+                                        <SelectItem value="HIGH" className="rounded-[14px]">High</SelectItem>
+                                        <SelectItem value="MEDIUM" className="rounded-[14px]">Medium</SelectItem>
+                                        <SelectItem value="LOW" className="rounded-[14px]">Low</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -404,7 +408,9 @@ export default function TasksDialogsSection({
                             onClick={createTask.onSubmit}
                             disabled={createTask.loading}
                         >
-                            {createTask.loading ? 'Creating task...' : 'Create task'}
+                            {createTask.loading
+                                ? (createTask.mode === 'EDIT' ? 'Saving...' : 'Creating task...')
+                                : (createTask.mode === 'EDIT' ? 'Save changes' : 'Create task')}
                         </Button>
                     </DrawerFooter>
                 </DrawerContent>
@@ -487,6 +493,40 @@ export default function TasksDialogsSection({
                             disabled={deleteTask.loading}
                         >
                             {deleteTask.loading ? 'Deleting...' : 'Delete permanently'}
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+ 
+            <Dialog open={deleteColumn.open} onOpenChange={deleteColumn.setOpen}>
+                <DialogContent className="max-w-md rounded-[24px] border-0 bg-white p-0 shadow-2xl">
+                    <DialogHeader className="px-6 pt-6 text-center sm:text-center">
+                        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-50 text-red-600">
+                            <Trash2 className="h-6 w-6" />
+                        </div>
+                        <DialogTitle className="text-xl font-bold text-slate-900">Delete column?</DialogTitle>
+                        <DialogDescription className="text-slate-500">
+                            This action cannot be undone. All tasks within this column will be permanently removed.
+                        </DialogDescription>
+                    </DialogHeader>
+ 
+                    <div className="mt-4 flex flex-col-reverse gap-3 rounded-b-[24px] border-t border-slate-200/80 bg-slate-50 px-6 py-5 sm:flex-row sm:justify-end">
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            className={octomSecondaryButtonClass}
+                            onClick={() => deleteColumn.setOpen(false)}
+                            disabled={deleteColumn.loading}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="button"
+                            className="h-11 rounded-[18px] bg-red-600 px-8 font-bold text-white shadow-lg shadow-red-200 hover:bg-red-700 active:scale-95 disabled:opacity-50 transition-all border-0"
+                            onClick={deleteColumn.onSubmit}
+                            disabled={deleteColumn.loading}
+                        >
+                            {deleteColumn.loading ? 'Deleting...' : 'Delete column'}
                         </Button>
                     </div>
                 </DialogContent>

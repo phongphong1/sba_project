@@ -1,5 +1,5 @@
 import { pointerWithin } from '@dnd-kit/core'
-import { MoreHorizontal, PencilLine, Plus } from 'lucide-react'
+import { MoreHorizontal, PencilLine, Plus, Trash2 } from 'lucide-react'
 import EmptyStatePanel from '@/components/common/EmptyStatePanel'
 import {
     KanbanBoard,
@@ -34,6 +34,7 @@ export default function TasksBoardSection({
     onCreateTask,
     onEditColumn,
     onTaskSelect,
+    onDeleteColumn,
 }) {
     if (!hasBoards) {
         return (
@@ -118,6 +119,15 @@ export default function TasksBoardSection({
                                     >
                                         <PencilLine className="mr-2 h-4 w-4 text-amber-500" />
                                         Edit column
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                        onSelect={() => {
+                                            window.setTimeout(() => onDeleteColumn(column.rawId), 0)
+                                        }}
+                                        className="cursor-pointer text-red-600 focus:bg-red-50 focus:text-red-700"
+                                    >
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        Delete column
                                     </DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>

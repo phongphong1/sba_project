@@ -31,9 +31,19 @@ const workspaceApi = {
     return axiosClient.patch(url, payload)
   },
 
+  deleteColumn(columnId) {
+    const url = `/columns/${columnId}`
+    return axiosClient.delete(url)
+  },
+
   createTask(payload) {
     const url = '/tasks'
     return axiosClient.post(url, payload)
+  },
+
+  updateTask(taskId, payload) {
+    const url = `/tasks/${taskId}`
+    return axiosClient.patch(url, payload)
   },
  
   deleteTask(taskId) {

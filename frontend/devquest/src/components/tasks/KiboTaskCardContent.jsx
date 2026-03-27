@@ -8,6 +8,7 @@ import {
 } from '@/constants/uiStyles'
 
 const priorityBadgeMap = {
+  URGENT: 'bg-red-500 text-white font-bold shadow-sm shadow-red-200 animate-pulse',
   HIGH: 'bg-rose-100 text-rose-600',
   MEDIUM: 'bg-amber-100 text-amber-600',
   LOW: 'bg-emerald-100 text-emerald-600',
