@@ -15,6 +15,7 @@ import fpt.sba.devquest.entity.Attachment;
 import fpt.sba.devquest.entity.Board;
 import fpt.sba.devquest.entity.Schedule;
 import fpt.sba.devquest.entity.Comment;
+import fpt.sba.devquest.entity.SubTask;
 import fpt.sba.devquest.entity.Task;
 import fpt.sba.devquest.entity.User;
 import fpt.sba.devquest.entity.Workspace;
@@ -25,6 +26,7 @@ import fpt.sba.devquest.repository.BoardRepository;
 import fpt.sba.devquest.repository.ColumnRepository;
 import fpt.sba.devquest.repository.CommentRepository;
 import fpt.sba.devquest.repository.ScheduleRepository;
+import fpt.sba.devquest.repository.SubtaskRepository;
 import fpt.sba.devquest.repository.TaskRepository;
 import fpt.sba.devquest.repository.UserRepository;
 import fpt.sba.devquest.repository.WorkspaceMemberRepository;
@@ -72,6 +74,7 @@ public class WorkspaceDashboardServiceImpl implements WorkspaceDashboardService 
     private final ColumnRepository columnRepository;
     private final CommentRepository commentRepository;
     private final ScheduleRepository scheduleRepository;
+    private final SubtaskRepository subtaskRepository;
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
 
@@ -185,6 +188,10 @@ public class WorkspaceDashboardServiceImpl implements WorkspaceDashboardService 
             ? Map.of()
             : attachmentRepository.findByTask_IdIn(taskIds).stream()
             .collect(Collectors.groupingBy(attachment -> attachment.getTask().getId()));
+        Map<Long, List<SubTask>> subtasksByTaskId = taskIds.isEmpty()
+            ? Map.of()
+            : subtaskRepository.findByTask_IdIn(taskIds).stream()
+            .collect(Collectors.groupingBy(subtask -> subtask.getTask().getId()));
 
         List<WorkspaceBoardDetailResponse.TaskItem> taskItems = tasks.stream().map(task -> {
             WorkspaceBoardDetailResponse.AssigneeItem assignee = null;
@@ -219,6 +226,15 @@ public class WorkspaceDashboardServiceImpl implements WorkspaceDashboardService 
                     safe(attachment.getFileSizeMeta())
                 )).toList();
 
+            List<WorkspaceBoardDetailResponse.ChecklistItem> checklistItems = subtasksByTaskId
+                .getOrDefault(task.getId(), List.of())
+                .stream()
+                .map(subtask -> new WorkspaceBoardDetailResponse.ChecklistItem(
+                    subtask.getId(),
+                    subtask.getContent(),
+                    Boolean.TRUE.equals(subtask.getIsCompleted())
+                )).toList();
+
             return new WorkspaceBoardDetailResponse.TaskItem(
                 task.getId(),
                 task.getColumn().getId(),
@@ -229,7 +245,7 @@ public class WorkspaceDashboardServiceImpl implements WorkspaceDashboardService 
                 progress(task),
                 assignee,
                 safe(task.getDescription()),
-                List.of(),
+                checklistItems,
                 commentItems,
                 attachmentItems
             );

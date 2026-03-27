@@ -129,6 +129,7 @@ function createStompClient() {
     },
     onStompError(frame) {
       const errorMessage = resolveRealtimeErrorMessage(frame)
+      console.error('🚨 STOMP SERVER ERROR:', errorMessage, frame)
 
       if (isAuthFailure(errorMessage)) {
         handleUnauthorizedRealtime(errorMessage)
@@ -231,6 +232,7 @@ export function subscribeToDestination(destination, onEvent, options = {}) {
 
     subscription = client.subscribe(destination, (message) => {
       const payload = parseMessageBody(message)
+      console.log('📡 STOMP RAW MESSAGE RECEIVED on', destination, ':', payload)
       onEvent(payload, message)
     }, options)
 

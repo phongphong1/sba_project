@@ -39,6 +39,7 @@ export default function BoardHeader({
   onPriorityChange,
   onAddColumn,
   onBoardSelect,
+  onCreateBoard,
   columnCount,
   taskCount,
   canAddColumn = true,
@@ -140,8 +141,23 @@ export default function BoardHeader({
           {isBoardDrawerOpen ? (
             <div className="flex h-full flex-col gap-6 overflow-y-auto">
               <DrawerHeader className="px-0">
-                <DrawerTitle>Switch board</DrawerTitle>
-                <DrawerDescription>Select another board inside this workspace.</DrawerDescription>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <DrawerTitle>Switch board</DrawerTitle>
+                    <DrawerDescription>Select another board inside this workspace.</DrawerDescription>
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setActiveDrawer(null)
+                      onCreateBoard?.()
+                    }}
+                    className={`h-10 shrink-0 ${octomPrimaryButtonClass}`}
+                  >
+                    <Plus className="h-4 w-4" />
+                    New board
+                  </Button>
+                </div>
               </DrawerHeader>
 
               <Card className={`border-0 ${octomMutedPanelClass}`}>

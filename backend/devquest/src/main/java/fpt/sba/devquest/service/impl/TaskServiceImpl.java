@@ -6,10 +6,12 @@ import fpt.sba.devquest.dto.task.UpdateTaskRequest;
 import fpt.sba.devquest.entity.Board;
 import fpt.sba.devquest.entity.Column;
 import fpt.sba.devquest.entity.Task;
+import fpt.sba.devquest.entity.SubTask;
 import fpt.sba.devquest.entity.User;
 import fpt.sba.devquest.repository.BoardRepository;
 import fpt.sba.devquest.repository.ColumnRepository;
 import fpt.sba.devquest.repository.TaskRepository;
+import fpt.sba.devquest.repository.SubtaskRepository;
 import fpt.sba.devquest.repository.UserRepository;
 import fpt.sba.devquest.service.RealtimeAuthorizationService;
 import fpt.sba.devquest.service.TaskService;
@@ -35,6 +37,7 @@ public class TaskServiceImpl implements TaskService {
     private static final DateTimeFormatter INPUT_DATE_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm");
 
     private final TaskRepository taskRepository;
+    private final SubtaskRepository subtaskRepository;
     private final BoardRepository boardRepository;
     private final ColumnRepository columnRepository;
     private final UserRepository userRepository;
@@ -143,6 +146,86 @@ public class TaskServiceImpl implements TaskService {
         User currentUser = getCurrentUser();
         realtimeAuthorizationService.assertWorkspaceAccess(currentUser.getId(), task.getColumn().getBoard().getWorkspace().getId());
         taskRepository.delete(task);
+    }
+
+    @Override
+    @Transactional
+    public void updateTaskPositionWs(Long taskId, Long toColumnId, Double position) {
+        Task task = taskRepository.findById(taskId).orElse(null);
+        if (task == null) {
+            return;
+        }
+        Column toColumn = columnRepository.findById(toColumnId).orElse(null);
+        if (toColumn == null) {
+            return;
+        }
+        task.setColumn(toColumn);
+        task.setPosition(position);
+        taskRepository.save(task);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public java.util.List<fpt.sba.devquest.dto.task.SubtaskResponse> getSubtasks(Long taskId) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Task not found."));
+        User currentUser = getCurrentUser();
+        realtimeAuthorizationService.assertWorkspaceAccess(currentUser.getId(), task.getColumn().getBoard().getWorkspace().getId());
+
+        return subtaskRepository.findByTask_Id(taskId).stream()
+                .map(s -> new fpt.sba.devquest.dto.task.SubtaskResponse(s.getId(), taskId, s.getContent(), Boolean.TRUE.equals(s.getIsCompleted())))
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public fpt.sba.devquest.dto.task.SubtaskResponse createSubtask(Long taskId, fpt.sba.devquest.dto.task.CreateSubtaskRequest request) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Task not found."));
+        User currentUser = getCurrentUser();
+        realtimeAuthorizationService.assertWorkspaceAccess(currentUser.getId(), task.getColumn().getBoard().getWorkspace().getId());
+
+        SubTask subtask = new SubTask();
+        subtask.setTask(task);
+        subtask.setContent(request.text());
+        subtask.setIsCompleted(false);
+        SubTask saved = subtaskRepository.save(subtask);
+
+        return new fpt.sba.devquest.dto.task.SubtaskResponse(saved.getId(), taskId, saved.getContent(), Boolean.TRUE.equals(saved.getIsCompleted()));
+    }
+
+    @Override
+    @Transactional
+    public fpt.sba.devquest.dto.task.SubtaskResponse updateSubtask(Long taskId, Long subtaskId, fpt.sba.devquest.dto.task.UpdateSubtaskRequest request) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Task not found."));
+        User currentUser = getCurrentUser();
+        realtimeAuthorizationService.assertWorkspaceAccess(currentUser.getId(), task.getColumn().getBoard().getWorkspace().getId());
+
+        SubTask subtask = subtaskRepository.findByIdAndTask_Id(subtaskId, taskId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Subtask not found in task."));
+
+        if (request.text() != null && !request.text().isBlank()) {
+            subtask.setContent(request.text());
+        }
+        if (request.done() != null) {
+            subtask.setIsCompleted(request.done());
+        }
+        SubTask saved = subtaskRepository.save(subtask);
+        return new fpt.sba.devquest.dto.task.SubtaskResponse(saved.getId(), taskId, saved.getContent(), Boolean.TRUE.equals(saved.getIsCompleted()));
+    }
+
+    @Override
+    @Transactional
+    public void deleteSubtask(Long taskId, Long subtaskId) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Task not found."));
+        User currentUser = getCurrentUser();
+        realtimeAuthorizationService.assertWorkspaceAccess(currentUser.getId(), task.getColumn().getBoard().getWorkspace().getId());
+
+        SubTask subtask = subtaskRepository.findByIdAndTask_Id(subtaskId, taskId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Subtask not found in task."));
+        subtaskRepository.delete(subtask);
     }
 
     private User resolveAssignee(Long assigneeId) {

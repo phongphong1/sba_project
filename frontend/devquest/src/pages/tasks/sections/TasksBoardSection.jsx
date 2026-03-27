@@ -1,11 +1,10 @@
-import { GripVertical, MoreHorizontal, PencilLine, Plus } from 'lucide-react'
+import { pointerWithin } from '@dnd-kit/core'
+import { MoreHorizontal, PencilLine, Plus } from 'lucide-react'
 import EmptyStatePanel from '@/components/common/EmptyStatePanel'
 import {
     KanbanBoard,
     KanbanCard,
-    KanbanCardDragHandle,
     KanbanCards,
-    KanbanDragHandle,
     KanbanHeader,
     KanbanProvider,
 } from '@/components/kibo-ui/kanban'
@@ -70,93 +69,89 @@ export default function TasksBoardSection({
                 columns={kanbanColumns}
                 data={kanbanData}
                 onDataChange={onKanbanDataChange}
-                onColumnsChange={onColumnsChange}
                 onDragEnd={onKanbanDragEnd}
+                collisionDetection={pointerWithin}
                 className="auto-cols-[360px] pb-1"
             >
                 {(column) => (
                     <KanbanBoard
                         id={column.id}
                         key={column.id}
-                        sortable
-                        className="w-[360px] min-w-[360px] rounded-[24px] border-0 bg-slate-100/70 shadow-none ring-0"
+                        className="w-[360px] min-w-[360px] rounded-[24px] border border-slate-200/60 bg-slate-50 shadow-sm"
                     >
-                        <KanbanHeader className="px-4 py-4">
-                            <div className="flex items-start justify-between gap-3">
-                                <KanbanDragHandle className="min-w-0 flex-1">
-                                    <h3 className="truncate text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
-                                        {column.name}
-                                    </h3>
-                                    <p className="mt-1 text-sm font-semibold text-slate-900">
-                                        {(tasksByColumn[column.id] ?? []).length} tasks
-                                    </p>
-                                </KanbanDragHandle>
-
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="icon-sm"
-                                            className="rounded-xl text-slate-500 hover:bg-slate-200 hover:text-slate-700"
-                                        >
-                                            <MoreHorizontal className="h-4 w-4" />
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="w-40">
-                                        <DropdownMenuItem
-                                            onSelect={() => {
-                                                window.setTimeout(() => {
-                                                    onCreateTask(column.id)
-                                                }, 0)
-                                            }}
-                                        >
-                                            <Plus className="h-4 w-4" />
-                                            Create task
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem
-                                            onSelect={() => {
-                                                window.setTimeout(() => {
-                                                    onEditColumn(column.id)
-                                                }, 0)
-                                            }}
-                                        >
-                                            <PencilLine className="h-4 w-4" />
-                                            Edit column
-                                        </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
+                        <KanbanHeader className="p-5 flex items-start justify-between gap-3 border-b border-slate-200/50">
+                            <div className="min-w-0 flex-1">
+                                <h3 className="truncate text-xs font-bold uppercase tracking-widest text-slate-500">
+                                    {column.name}
+                                </h3>
+                                <p className="mt-1 text-sm font-medium text-slate-700">
+                                    {(tasksByColumn[column.rawId] ?? []).length} tasks
+                                </p>
                             </div>
+
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon-sm"
+                                        className="rounded-xl text-slate-400 hover:bg-slate-200/60 hover:text-slate-700"
+                                    >
+                                        <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-40 rounded-xl shadow-lg">
+                                    <DropdownMenuItem
+                                        onSelect={() => {
+                                            window.setTimeout(() => onCreateTask(column.rawId), 0)
+                                        }}
+                                        className="cursor-pointer"
+                                    >
+                                        <Plus className="mr-2 h-4 w-4 text-emerald-500" />
+                                        Create task
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                        onSelect={() => {
+                                            window.setTimeout(() => onEditColumn(column.rawId), 0)
+                                        }}
+                                        className="cursor-pointer"
+                                    >
+                                        <PencilLine className="mr-2 h-4 w-4 text-amber-500" />
+                                        Edit column
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
                         </KanbanHeader>
 
-                        <KanbanCards id={column.id} className="gap-4 p-4">
+                        <KanbanCards id={column.id} className="gap-3 p-3">
                             {(item) => (
                                 <KanbanCard
                                     key={item.id}
                                     id={item.id}
                                     name={item.name}
-                                    dragHandle
-                                    className="rounded-[24px] border-0 bg-white p-5 shadow-sm ring-1 ring-slate-200/80 transition duration-200 hover:-translate-y-1 hover:shadow-lg hover:shadow-slate-200/60"
+                                    className="rounded-[20px] border border-slate-100 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md active:scale-[0.98] active:shadow-none"
                                 >
-                                    <div className="mb-3 flex justify-end">
-                                        <KanbanCardDragHandle className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
-                                            <GripVertical className="h-4 w-4" />
-                                        </KanbanCardDragHandle>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => onTaskSelect(String(item.id))}
-                                        className="w-full whitespace-normal text-left"
+                                    <div
+                                        onClick={() => onTaskSelect(String(item.id).replace('tsk_', ''))}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' || e.key === ' ') {
+                                                e.preventDefault()
+                                                onTaskSelect(String(item.id).replace('tsk_', ''))
+                                            }
+                                        }}
+                                        role="button"
+                                        tabIndex={0}
+                                        className="w-full text-left focus:outline-none"
                                     >
                                         <KiboTaskCardContent task={item.task} />
-                                    </button>
+                                    </div>
                                 </KanbanCard>
                             )}
                         </KanbanCards>
                     </KanbanBoard>
                 )}
             </KanbanProvider>
-            <ScrollBar orientation="horizontal" />
+            <ScrollBar orientation="horizontal" className="h-2.5" />
         </ScrollArea>
     )
 }

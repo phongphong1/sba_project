@@ -7,6 +7,7 @@ import fpt.sba.devquest.dto.ws.TaskMovedPayload;
 import fpt.sba.devquest.entity.UserDetailsImpl;
 import fpt.sba.devquest.service.RealtimeAuthorizationService;
 import fpt.sba.devquest.service.RealtimeEventService;
+import fpt.sba.devquest.service.TaskService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.http.HttpStatus;
@@ -20,6 +21,7 @@ public class RealtimeCommandController {
 
     private final RealtimeEventService realtimeEventService;
     private final RealtimeAuthorizationService realtimeAuthorizationService;
+    private final TaskService taskService;
 
     @MessageMapping("/messages/send")
     public void sendMessage(SendMessageCommand command, Authentication authentication) {
@@ -44,6 +46,8 @@ public class RealtimeCommandController {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized websocket command.");
         }
         realtimeAuthorizationService.assertWorkspaceAccess(movedByUserId, command.workspaceId());
+
+        taskService.updateTaskPositionWs(command.taskId(), command.toColumnId(), command.position());
 
         TaskMovedPayload payload = new TaskMovedPayload(
                 command.workspaceId(),

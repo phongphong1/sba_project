@@ -145,7 +145,8 @@ export default function TasksPage() {
     const kanbanColumns = useMemo(
         () =>
             orderedColumns.map((column) => ({
-                id: column.id,
+                id: `col_${column.id}`,
+                rawId: column.id,
                 name: column.name,
             })),
         [orderedColumns],
@@ -154,9 +155,9 @@ export default function TasksPage() {
     const kanbanData = useMemo(
         () =>
             sortTasksForBoard(orderedColumns, filteredTasks).map((task) => ({
-                id: task.id,
+                id: `tsk_${task.id}`,
                 name: task.title,
-                column: task.columnId,
+                column: `col_${task.columnId}`,
                 task,
             })),
         [filteredTasks, orderedColumns],
@@ -383,25 +384,27 @@ export default function TasksPage() {
     const handleKanbanDataChange = (newKanbanData) => {
         setBoardDraft((currentData) => {
             const currentBoardData = currentData ?? boardData
-            const visibleTaskIds = new Set(filteredTasks.map((task) => task.id))
-            const taskMap = new Map(currentBoardData.tasks.map((task) => [task.id, task]))
-            const hiddenTasks = currentBoardData.tasks.filter((task) => !visibleTaskIds.has(task.id))
+            const visibleTaskIds = new Set(filteredTasks.map((task) => String(task.id)))
+            const taskMap = new Map(currentBoardData.tasks.map((task) => [String(task.id), task]))
+            const hiddenTasks = currentBoardData.tasks.filter((task) => !visibleTaskIds.has(String(task.id)))
 
             const updatedVisibleTasks = newKanbanData
                 .map((item) => {
-                    const task = taskMap.get(item.id)
+                    const realId = String(item.id).replace('tsk_', '')
+                    const realCol = String(item.column).replace('col_', '')
+                    const task = taskMap.get(realId)
                     if (!task) return null
                     return {
                         ...task,
-                        columnId: item.column,
+                        columnId: realCol,
                     }
                 })
                 .filter(Boolean)
 
             const mergedTasks = orderedColumns.flatMap((column) => {
-                const visibleInColumn = updatedVisibleTasks.filter((task) => task.columnId === column.id)
+                const visibleInColumn = updatedVisibleTasks.filter((task) => String(task.columnId) === String(column.id))
                 const hiddenInColumn = hiddenTasks
-                    .filter((task) => task.columnId === column.id)
+                    .filter((task) => String(task.columnId) === String(column.id))
                     .sort((a, b) => a.position - b.position)
 
                 return reindexTasks([...visibleInColumn, ...hiddenInColumn], column.id)
@@ -417,14 +420,20 @@ export default function TasksPage() {
     const handleKanbanDragEnd = (event) => {
         const { active, over } = event
 
-        if (!active || !over || active.id === over.id) return
+        // if (!active || !over || active.id === over.id) return
         if (active.data.current?.type === 'column') return
 
-        const movePayload = buildTaskMovePayload(boardData, workspaceId, active.id, over.id)
+        const isOverColumnExplicit = over.data.current?.type === 'column' || String(over.id).startsWith('col_')
+        const activeIdRaw = String(active.id).replace('tsk_', '')
+        const overIdRaw = String(over.id).replace('tsk_', '').replace('col_', '')
+
+        const movePayload = buildTaskMovePayload(kanbanData, workspaceId, activeIdRaw, overIdRaw, isOverColumnExplicit)
 
         if (!movePayload) {
             return
         }
+
+        console.log("🔥 STOMP SENDING:", JSON.stringify(movePayload, null, 2))
 
         void sendTaskMoveCommand(movePayload).catch((error) => {
             console.error('Failed to publish task move command:', error)
@@ -557,6 +566,7 @@ export default function TasksPage() {
                     onPriorityChange={setActivePriority}
                     onAddColumn={handleOpenAddColumnDialog}
                     onBoardSelect={handleBoardSelect}
+                    onCreateBoard={handleOpenCreateBoardDialog}
                     columnCount={boardView.columns.length}
                     taskCount={boardView.tasks.length}
                     canAddColumn={hasResolvedBoard}

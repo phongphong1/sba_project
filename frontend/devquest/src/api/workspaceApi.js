@@ -36,6 +36,26 @@ const workspaceApi = {
     return axiosClient.post(url, payload)
   },
 
+  getSubtasks(taskId, config = {}) {
+    const url = `/tasks/${taskId}/checklist`
+    return axiosClient.get(url, config)
+  },
+
+  createSubtask(taskId, payload) {
+    const url = `/tasks/${taskId}/checklist`
+    return axiosClient.post(url, payload)
+  },
+
+  updateSubtask(taskId, subtaskId, payload) {
+    const url = `/tasks/${taskId}/checklist/${subtaskId}`
+    return axiosClient.patch(url, payload)
+  },
+
+  deleteSubtask(taskId, subtaskId) {
+    const url = `/tasks/${taskId}/checklist/${subtaskId}`
+    return axiosClient.delete(url)
+  },
+
   getTaskSummary(workspaceId) {
     const url = `/workspaces/${workspaceId}/tasks/summary`
     return axiosClient.get(url)
